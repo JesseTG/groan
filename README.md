@@ -1,2 +1,2 @@
-# groin
+# groan
 Good Retroarch OpenAI Integration

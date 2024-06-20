@@ -1,0 +1,11 @@
+[package]
+name = "groan"
+version = "0.0.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+warp = "0.3"
+async-openai = "0.23.3"
