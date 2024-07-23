@@ -557,10 +557,13 @@ name = "groan"
 version = "0.0.0"
 dependencies = [
  "async-openai",
+ "base64 0.22.1",
+ "bytes",
  "clap",
  "log",
  "pretty_env_logger",
  "serde",
+ "serde_json",
  "tokio",
  "warp",
 ]
