@@ -1,5 +1,6 @@
 mod types;
 
+use std::net::{IpAddr, Ipv4Addr};
 use clap::Parser;
 use warp::Filter;
 use bytes::Bytes;
@@ -15,10 +16,11 @@ struct Cli {
     #[arg(short, long, env = "OPENAI_API_KEY")]
     key: String,
 
+    #[arg(short, long, default_value_t = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)))]
+    ip: IpAddr,
+
     #[arg(short, long, default_value_t = 4404)]
     port: u16,
-
-    // TODO: Select a host
 }
 
 #[tokio::main]
@@ -50,6 +52,6 @@ async fn main() {
         .with(warp::trace::named("groan"));
 
     warp::serve(hello)
-        .run(([127, 0, 0, 1], cli.port))
+        .run((cli.ip, cli.port))
         .await;
 }
