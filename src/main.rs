@@ -32,10 +32,10 @@ async fn main() {
         // ...with query parameters that suit RequestParams...
         .and(warp::query::<RequestParams>())
         // ...regardless of the declared content type.
-        // RetroArch declares application/x-www-form-urlencoded,
-        // but the body is actually JSON;
-        // hence we deserialize explicitly because warp doesn't know how to
         .and(warp::body::bytes())
+        // RetroArch declares application/x-www-form-urlencoded for its AI service requests,
+        // but the body is actually JSON;
+        // hence we deserialize explicitly because warp doesn't know how to handle this discrepancy.
         .and_then(|params, body: Bytes| async move {
             if let Ok(body) = serde_json::from_slice::<RequestBody>(body.iter().as_slice()) {
                 Ok((params, body))
