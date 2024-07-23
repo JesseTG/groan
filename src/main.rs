@@ -1,7 +1,7 @@
+mod types;
 use clap::Parser;
-use serde::{Deserialize, Serialize};
 use warp::Filter;
-
+use crate::types::RequestParams;
 // NOTE: These doc comments are parsed and embedded into the CLI itself.
 
 /// groan - Good RetroArch OpenAI iNtegration
@@ -17,13 +17,6 @@ struct Cli {
     port: u16,
 
     // TODO: Select a host
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-struct RequestParams {
-    source_lang: Option<String>,
-    target_lang: Option<String>,
-    output: String,
 }
 
 #[tokio::main]
