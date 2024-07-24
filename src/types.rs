@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+// Types based on descriptions given in https://docs.libretro.com/guides/ai-service/#for-developers
+
 #[derive(Deserialize, Serialize, Debug)]
 pub(crate) struct RequestParams {
     source_lang: Option<String>,
