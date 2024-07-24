@@ -4,9 +4,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug)]
 pub(crate) struct RequestParams {
-    source_lang: Option<String>,
-    target_lang: Option<String>,
-    output: String,
+    pub(crate) source_lang: Option<String>,
+    pub(crate) target_lang: Option<String>,
+    pub(crate) output: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
