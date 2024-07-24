@@ -31,7 +31,7 @@ pub(crate) enum ImageOutputType {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub(crate) struct RequestBody {
-    #[serde(with = "image_serialize")]
+    #[serde(with = "base64_serialize")]
     pub(crate) image: Vec<u8>,
     pub(crate) label: String,
     pub(crate) state: InputState,
@@ -63,7 +63,7 @@ pub(crate) struct InvalidRequestBody;
 
 impl warp::reject::Reject for InvalidRequestBody {}
 
-mod image_serialize {
+mod base64_serialize {
     use serde::{de, ser};
     use std::fmt;
     use base64::Engine;
