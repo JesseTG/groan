@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 pub(crate) struct RequestParams {
     pub(crate) source_lang: Option<String>,
     pub(crate) target_lang: Option<String>,
-    pub(crate) output: String,
+    pub(crate) output: OutputFormat,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
