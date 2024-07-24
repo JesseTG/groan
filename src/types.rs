@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 pub(crate) struct RequestParams {
     source_lang: Option<String>,
     target_lang: Option<String>,
-    output: OutputFormat,
+    output: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -35,6 +35,20 @@ pub(crate) struct RequestBody {
     pub(crate) image: Vec<u8>,
     pub(crate) label: String,
     pub(crate) state: InputState,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum AutoRequest {
+    Auto,
+    Continue,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum TextPosition {
+    Bottom = 1,
+    Top = 2,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
