@@ -4,7 +4,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use clap::Parser;
 use warp::Filter;
 use bytes::Bytes;
-use crate::types::{InvalidRequestBody, RequestBody, RequestParams};
+use crate::types::{InvalidRequestBody, OutputFormat, RequestBody, RequestParams};
 // NOTE: These doc comments are parsed and embedded into the CLI itself.
 
 /// groan - Good RetroArch OpenAI iNtegration
@@ -23,6 +23,23 @@ struct Cli {
     port: u16,
 }
 
+async fn query_service(params: RequestParams, body: RequestBody) -> String {
+    match params.output.iter().map(|s| s.as_str()).collect::<Vec<&str>>().as_slice() {
+        ["text", ..] => {
+            return format!("text");
+        },
+        ["sound", "wav", ..] => {
+            return "sound: wav".to_string();
+        },
+        ["image", "png", "png-a", ..] => {
+            return format!("image png");
+        },
+        _ => {
+            return "unknown".to_string();
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
@@ -39,6 +56,7 @@ async fn main() {
         // but the body is actually JSON;
         // hence we deserialize explicitly because warp doesn't know how to handle this discrepancy.
         .and_then(|params, body: Bytes| async move {
+            log::info!(target: "groan", "{:?}", params);
             if let Ok(body) = serde_json::from_slice::<RequestBody>(body.iter().as_slice()) {
                 Ok((params, body))
             } else {
@@ -46,9 +64,7 @@ async fn main() {
             }
         })
         .untuple_one()
-        .map(|params, body: RequestBody| {
-            format!("{:?}, {:?}", params, body)
-        })
+        .then(query_service)
         .with(warp::trace::named("groan"));
 
     warp::serve(hello)

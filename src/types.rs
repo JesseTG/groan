@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 pub(crate) struct RequestParams {
     pub(crate) source_lang: Option<String>,
     pub(crate) target_lang: Option<String>,
-    pub(crate) output: OutputFormat,
+    #[serde(with = "comma_separated_serialize")]
+    pub(crate) output: Vec<String>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -111,6 +112,42 @@ mod base64_serialize {
                 E: Error,
             {
                 STANDARD.decode(v).map_err(E::custom)
+            }
+        }
+
+        deserializer.deserialize_str(Visitor)
+    }
+}
+
+mod comma_separated_serialize {
+    use serde::{de, ser};
+    use std::fmt;
+
+    pub fn serialize<S>(data: &Vec<String>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        serializer.collect_str(data.join(",").as_str())
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        struct Visitor;
+
+        impl<'de> de::Visitor<'de> for Visitor {
+            type Value = Vec<String>;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a comma-separated list of strings")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(v.split(',').map(String::from).collect())
             }
         }
 
