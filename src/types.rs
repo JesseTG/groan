@@ -13,18 +13,18 @@ pub(crate) struct RequestParams {
 #[serde(rename_all = "lowercase")]
 pub(crate) enum OutputFormat {
     Text,
-    Sound(SoundOutputType),
-    Image(Vec<ImageOutputType>),
+    Sound(SoundOutputFormat),
+    Image(Vec<ImageOutputFormat>),
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "lowercase")]
-pub(crate) enum SoundOutputType {
+pub(crate) enum SoundOutputFormat {
     Wav,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub(crate) enum ImageOutputType {
+pub(crate) enum ImageOutputFormat {
     #[serde(rename = "png")]
     Png,
     #[serde(rename = "png-a")]
