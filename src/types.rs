@@ -19,6 +19,30 @@ pub(crate) enum OutputFormat {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+pub(crate) struct ResponseBody {
+    #[serde(default, skip_serializing_if = "Option::is_none", serialize_with = "base64_serialize::serialize_option")]
+    pub(crate) image: Option<Vec<u8>>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none", serialize_with = "base64_serialize::serialize_option")]
+    pub(crate) sound: Option<Vec<u8>>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) text: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) text_position: Option<TextPosition>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) press: Option<Vec<String>>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) error: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) auto_request: Option<AutoRequest>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum SoundOutputFormat {
     Wav,
@@ -92,6 +116,16 @@ mod base64_serialize {
         S: ser::Serializer,
     {
         serializer.serialize_str(STANDARD.encode(data).as_str())
+    }
+
+    pub fn serialize_option<S>(data: &Option<Vec<u8>>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        match data {
+            Some(data) => serializer.serialize_str(STANDARD.encode(data).as_str()),
+            None => serializer.serialize_none(),
+        }
     }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
