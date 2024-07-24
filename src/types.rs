@@ -4,7 +4,29 @@ use serde::{Deserialize, Serialize};
 pub(crate) struct RequestParams {
     source_lang: Option<String>,
     target_lang: Option<String>,
-    output: String,
+    output: OutputFormat,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum OutputFormat {
+    Text,
+    Sound(SoundOutputType),
+    Image(Vec<ImageOutputType>),
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum SoundOutputType {
+    Wav,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub(crate) enum ImageOutputType {
+    #[serde(rename = "png")]
+    Png,
+    #[serde(rename = "png-a")]
+    PngA,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
