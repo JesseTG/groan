@@ -1,4 +1,5 @@
 mod types;
+mod service;
 
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
@@ -7,6 +8,7 @@ use async_openai::config::OpenAIConfig;
 use clap::Parser;
 use warp::Filter;
 use bytes::Bytes;
+use crate::service::query_service;
 use crate::types::{InvalidRequestBody, OutputFormat, RequestBody, RequestParams, ResponseBody};
 // NOTE: These doc comments are parsed and embedded into the CLI itself.
 
@@ -26,14 +28,6 @@ struct Cli {
     port: u16,
 }
 
-async fn query_service(client: Arc<Client<OpenAIConfig>>, params: RequestParams, body: RequestBody) -> ResponseBody {
-    match params.output.iter().map(|s| s.as_str()).collect::<Vec<&str>>().as_slice() {
-        ["text", ..] => ResponseBody::text("Not yet implemented."),
-        ["sound", "wav", ..] => ResponseBody::error("Sound not implemented"),
-        ["image", "png", "png-a", ..] => ResponseBody::error("Image not implemented"),
-        _ => ResponseBody::error(format!("Unknown output format {:?}", params.output)),
-    }
-}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
