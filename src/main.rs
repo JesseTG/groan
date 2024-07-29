@@ -37,7 +37,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Arc::new(Client::with_config(OpenAIConfig::new().with_api_key(cli.key)));
 
     // Do a basic query just to make sure the key is okay
-    let models = client.models().list().await?;
+    let _ = client.models().list().await?;
     // TODO: Make the exit printout look nicer
 
     let hello = warp::post() // Accept only POST requests...
