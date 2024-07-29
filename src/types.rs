@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 
 // Types based on descriptions given in https://docs.libretro.com/guides/ai-service/#for-developers
@@ -64,7 +65,7 @@ pub(crate) enum ImageOutputFormat {
     PngA,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize)]
 pub(crate) struct RequestBody {
     #[serde(with = "base64_serialize")]
     pub(crate) image: Vec<u8>,
@@ -134,6 +135,20 @@ impl ResponseBody {
             error: Some(error.into()),
             ..Default::default()
         }
+    }
+}
+
+impl Debug for RequestBody {
+    // So that RequestBody can be printed in logs without an enormous base64 image.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RequestBody")
+            .field("image", &"<base64-encoded image>")
+            .field("format", &self.format)
+            .field("coords", &self.coords)
+            .field("viewport", &self.viewport)
+            .field("label", &self.label)
+            .field("state", &self.state)
+            .finish()
     }
 }
 
