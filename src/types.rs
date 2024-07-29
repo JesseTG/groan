@@ -18,12 +18,20 @@ pub(crate) enum OutputFormat {
     Image(Vec<ImageOutputFormat>),
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Default)]
 pub(crate) struct ResponseBody {
-    #[serde(default, skip_serializing_if = "Option::is_none", serialize_with = "base64_serialize::serialize_option")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "base64_serialize::serialize_option"
+    )]
     pub(crate) image: Option<Vec<u8>>,
 
-    #[serde(default, skip_serializing_if = "Option::is_none", serialize_with = "base64_serialize::serialize_option")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "base64_serialize::serialize_option"
+    )]
     pub(crate) sound: Option<Vec<u8>>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -103,6 +111,28 @@ pub(crate) struct InputState {
 pub(crate) struct InvalidRequestBody;
 
 impl warp::reject::Reject for InvalidRequestBody {}
+
+impl ResponseBody {
+    pub(crate) fn text<T>(text: T) -> Self
+    where
+        T: Into<String>,
+    {
+        Self {
+            text: Some(text.into()),
+            ..Default::default()
+        }
+    }
+
+    pub(crate) fn error<T>(error: T) -> Self
+    where
+        T: Into<String>,
+    {
+        Self {
+            error: Some(error.into()),
+            ..Default::default()
+        }
+    }
+}
 
 mod base64_serialize {
     use serde::{de, ser};

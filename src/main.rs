@@ -4,7 +4,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use clap::Parser;
 use warp::Filter;
 use bytes::Bytes;
-use crate::types::{InvalidRequestBody, OutputFormat, RequestBody, RequestParams};
+use crate::types::{InvalidRequestBody, OutputFormat, RequestBody, RequestParams, ResponseBody};
 // NOTE: These doc comments are parsed and embedded into the CLI itself.
 
 /// groan - Good RetroArch OpenAI iNtegration
@@ -23,20 +23,12 @@ struct Cli {
     port: u16,
 }
 
-async fn query_service(params: RequestParams, body: RequestBody) -> String {
+async fn query_service(params: RequestParams, body: RequestBody) -> ResponseBody {
     match params.output.iter().map(|s| s.as_str()).collect::<Vec<&str>>().as_slice() {
-        ["text", ..] => {
-            return format!("text");
-        },
-        ["sound", "wav", ..] => {
-            return "sound: wav".to_string();
-        },
-        ["image", "png", "png-a", ..] => {
-            return format!("image png");
-        },
-        _ => {
-            return "unknown".to_string();
-        }
+        ["text", ..] => ResponseBody::text("Not yet implemented."),
+        ["sound", "wav", ..] => ResponseBody::error("Sound not implemented"),
+        ["image", "png", "png-a", ..] => ResponseBody::error("Image not implemented"),
+        _ => ResponseBody::error(format!("Unknown output format {:?}", params.output)),
     }
 }
 
@@ -65,6 +57,7 @@ async fn main() {
         })
         .untuple_one()
         .then(query_service)
+        .map(|response| warp::reply::json(&response))
         .with(warp::trace::named("groan"));
 
     warp::serve(hello)
