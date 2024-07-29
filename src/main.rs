@@ -59,6 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .and_then(|params, body: Bytes| async move {
             log::info!(target: "groan", "{:?}", params);
             if let Ok(body) = serde_json::from_slice::<RequestBody>(body.iter().as_slice()) {
+                log::info!(target: "groan", "{:?}", body);
                 Ok((params, body))
             } else {
                 Err(warp::reject::custom(InvalidRequestBody))
