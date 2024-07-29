@@ -1,6 +1,9 @@
 mod types;
 
 use std::net::{IpAddr, Ipv4Addr};
+use std::sync::Arc;
+use async_openai::Client;
+use async_openai::config::OpenAIConfig;
 use clap::Parser;
 use warp::Filter;
 use bytes::Bytes;
@@ -23,7 +26,7 @@ struct Cli {
     port: u16,
 }
 
-async fn query_service(params: RequestParams, body: RequestBody) -> ResponseBody {
+async fn query_service(client: Arc<Client<OpenAIConfig>>, params: RequestParams, body: RequestBody) -> ResponseBody {
     match params.output.iter().map(|s| s.as_str()).collect::<Vec<&str>>().as_slice() {
         ["text", ..] => ResponseBody::text("Not yet implemented."),
         ["sound", "wav", ..] => ResponseBody::error("Sound not implemented"),
@@ -33,9 +36,15 @@ async fn query_service(params: RequestParams, body: RequestBody) -> ResponseBody
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
     pretty_env_logger::init();
+
+    let client = Arc::new(Client::with_config(OpenAIConfig::new().with_api_key(cli.key)));
+
+    // Do a basic query just to make sure the key is okay
+    let models = client.models().list().await?;
+    // TODO: Make the exit printout look nicer
 
     let hello = warp::post() // Accept only POST requests...
         // ...at the root path...
@@ -56,11 +65,15 @@ async fn main() {
             }
         })
         .untuple_one()
-        .then(query_service)
+        // query_service may run on another thread, possibly with multiple instances;
+        // therefore we create the client in an `Arc` and clone it for each call to this endpoint
+        .then(move |params, body| query_service(Arc::clone(&client), params, body))
         .map(|response| warp::reply::json(&response))
         .with(warp::trace::named("groan"));
 
     warp::serve(hello)
         .run((cli.ip, cli.port))
         .await;
+
+    Ok(())
 }
