@@ -58,8 +58,9 @@ pub(crate) enum SoundOutputFormat {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+#[serde(rename_all = "lowercase")]
 pub(crate) enum ImageOutputFormat {
-    #[serde(rename = "png")]
+    Bmp,
     Png,
     #[serde(rename = "png-a")]
     PngA,
