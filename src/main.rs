@@ -9,7 +9,7 @@ use clap::Parser;
 use warp::Filter;
 use bytes::Bytes;
 use crate::service::query_service;
-use crate::types::{InvalidRequestBody, OutputFormat, RequestBody, RequestParams, ResponseBody};
+use crate::types::{InvalidRequestBody, RequestBody, RequestParams};
 // NOTE: These doc comments are parsed and embedded into the CLI itself.
 
 /// groan - Good RetroArch OpenAI iNtegration
