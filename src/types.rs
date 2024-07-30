@@ -152,7 +152,6 @@ impl Debug for RequestBody {
             .finish()
     }
 }
-
 mod base64_serialize {
     use serde::{de, ser};
     use std::fmt;
