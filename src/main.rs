@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _ = client.models().list().await?;
     // TODO: Make the exit printout look nicer
 
-    let hello = warp::post() // Accept only POST requests...
+    let service = warp::post() // Accept only POST requests...
         // ...at the root path...
         .and(warp::path::end())
         // ...with query parameters that suit RequestParams...
@@ -66,7 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(|response| warp::reply::json(&response))
         .with(warp::trace::named("groan"));
 
-    warp::serve(hello)
+    warp::serve(service)
         .run((cli.ip, cli.port))
         .await;
 
