@@ -68,8 +68,7 @@ pub(crate) enum ImageOutputFormat {
 
 #[derive(Deserialize, Serialize)]
 pub(crate) struct RequestBody {
-    #[serde(with = "base64_serialize")]
-    pub(crate) image: Vec<u8>,
+    pub(crate) image: String,
     pub(crate) format: Option<ImageOutputFormat>,
     pub(crate) coords: Option<(i32, i32, i32, i32)>,
     pub(crate) viewport: Option<(i32, i32)>,
