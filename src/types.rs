@@ -1,5 +1,5 @@
-use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 
 // Types based on descriptions given in https://docs.libretro.com/guides/ai-service/#for-developers
 
@@ -152,11 +152,11 @@ impl Debug for RequestBody {
     }
 }
 mod base64_serialize {
+    use base64::engine::general_purpose::STANDARD;
+    use base64::Engine;
+    use serde::de::Error;
     use serde::{de, ser};
     use std::fmt;
-    use base64::Engine;
-    use base64::engine::general_purpose::STANDARD;
-    use serde::de::Error;
 
     pub fn serialize<S>(data: &[u8], serializer: S) -> Result<S::Ok, S::Error>
     where

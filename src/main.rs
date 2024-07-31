@@ -1,14 +1,13 @@
-mod types;
 mod ai;
+mod types;
 mod web;
 
+use crate::ai::{AiService, ServiceMessage};
+use async_openai::config::OpenAIConfig;
+use async_openai::Client;
+use clap::Parser;
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
-use async_openai::Client;
-use async_openai::config::OpenAIConfig;
-use clap::Parser;
-use warp::Filter;
-use crate::ai::{AiService, ServiceMessage};
 // NOTE: These doc comments are parsed and embedded into the CLI itself.
 
 /// groan - Good RetroArch OpenAI iNtegration
@@ -27,18 +26,18 @@ struct Cli {
     port: u16,
 
     // TODO: Allow the console to bind on a separate interface
-
     #[arg(short, long, default_value_t = 4405)]
     console_port: u16,
 }
-
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
     pretty_env_logger::init();
 
-    let client = Arc::new(Client::with_config(OpenAIConfig::new().with_api_key(cli.key)));
+    let client = Arc::new(Client::with_config(
+        OpenAIConfig::new().with_api_key(cli.key),
+    ));
 
     // Do a basic query just to make sure the key is okay
     let _ = client.models().list().await?;
@@ -48,9 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (sender, receiver) = tokio::sync::mpsc::channel::<ServiceMessage>(32);
     let service = AiService::service(client, Some(sender));
 
-    tokio::join!(
-        warp::serve(service).run((cli.ip, cli.port)),
-    );
+    tokio::join!(warp::serve(service).run((cli.ip, cli.port)),);
 
     Ok(())
 }

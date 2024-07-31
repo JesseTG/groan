@@ -1,15 +1,18 @@
-use std::sync::Arc;
-use async_openai::Client;
+use crate::types::{
+    ImageOutputFormat, InvalidRequestBody, RequestBody, RequestParams, ResponseBody,
+};
 use async_openai::config::OpenAIConfig;
-use async_openai::types::{ChatCompletionRequestMessage, ChatCompletionRequestMessageContentPart, ChatCompletionRequestMessageContentPartImageArgs, ChatCompletionRequestSystemMessageArgs, ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs};
+use async_openai::types::{
+    ChatCompletionRequestMessage, ChatCompletionRequestMessageContentPart,
+    ChatCompletionRequestMessageContentPartImageArgs, ChatCompletionRequestSystemMessageArgs,
+    ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
+};
+use async_openai::Client;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tokio::sync::mpsc::{Receiver, Sender};
-use warp::{Filter, Reply};
-use warp::filters::BoxedFilter;
-use warp::http::HeaderMap;
-use crate::types::{ImageOutputFormat, InvalidRequestBody, RequestBody, RequestParams, ResponseBody};
-
+use warp::Filter;
 
 pub(crate) type MessageSender = Sender<ServiceMessage>;
 pub(crate) type MessageReceiver = Receiver<ServiceMessage>;
@@ -37,11 +40,11 @@ pub(crate) enum ServiceMessage {
 }
 
 impl AiService {
-    pub(crate) fn service(client: Arc<Client<OpenAIConfig>>, sender: Option<MessageSender>) -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection> + Clone {
-        let service = Arc::new(Self {
-            client,
-            sender,
-        });
+    pub(crate) fn service(
+        client: Arc<Client<OpenAIConfig>>,
+        sender: Option<MessageSender>,
+    ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+        let service = Arc::new(Self { client, sender });
 
         warp::post() // Accept only POST requests...
             // ...at the root path...
@@ -74,8 +77,18 @@ impl AiService {
             .with(warp::trace::named("groan"))
     }
 
-    async fn query_service(service: Arc<AiService>, params: RequestParams, body: RequestBody) -> ResponseBody {
-        match params.output.iter().map(|s| s.as_str()).collect::<Vec<&str>>().as_slice() {
+    async fn query_service(
+        service: Arc<AiService>,
+        params: RequestParams,
+        body: RequestBody,
+    ) -> ResponseBody {
+        match params
+            .output
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<&str>>()
+            .as_slice()
+        {
             ["text", ..] => AiService::send_chat_request(service, params, body).await,
             ["sound", "wav", ..] => ResponseBody::error("Sound not implemented"),
             ["image", "png", "png-a", ..] => ResponseBody::error("Image not implemented"),
@@ -83,7 +96,11 @@ impl AiService {
         }
     }
 
-    async fn send_chat_request(service: Arc<AiService>, params: RequestParams, body: RequestBody) -> ResponseBody {
+    async fn send_chat_request(
+        service: Arc<AiService>,
+        params: RequestParams,
+        body: RequestBody,
+    ) -> ResponseBody {
         let system = ChatCompletionRequestSystemMessageArgs::default()
             .content(
                 "You are a narration service helping a visually impaired player \
@@ -92,14 +109,18 @@ impl AiService {
             Your response will be read aloud by a text-to-speech system; \
             limit your response to at most two sentences. \
             Do not use headings or explicit section makers. \
-            Do not speculate about the image's contents."
+            Do not speculate about the image's contents.",
             ) // TODO: Make customizable
             .build()
             .map(ChatCompletionRequestMessage::System)
             .unwrap();
 
         let message = ChatCompletionRequestMessageContentPartImageArgs::default()
-            .image_url(format!("data:image/{:?};base64,{}", body.format.unwrap_or(ImageOutputFormat::Png), body.image))
+            .image_url(format!(
+                "data:image/{:?};base64,{}",
+                body.format.unwrap_or(ImageOutputFormat::Png),
+                body.image
+            ))
             .build()
             .map(ChatCompletionRequestMessageContentPart::ImageUrl)
             .unwrap();
@@ -126,4 +147,3 @@ impl AiService {
         }
     }
 }
-
