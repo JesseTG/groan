@@ -7,13 +7,13 @@ use crate::types::{ImageOutputFormat, RequestBody, RequestParams, ResponseBody};
 async fn send_chat_request(client: Arc<Client<OpenAIConfig>>, params: RequestParams, body: RequestBody) -> ResponseBody {
     let system = ChatCompletionRequestSystemMessageArgs::default()
         .content(
-            "You are a narration service \
-                    helping a visually impaired player \
-                    understand the scene for the game they're playing. \
-                    Describe the contents of the base64-encoded screenshots you will be given. \
-                    Your response will be read aloud by a text-to-speech system; \
-                    limit your response to one paragraph, \
-                    and do not use headings or explicit section makers."
+            "You are a narration service helping a visually impaired player \
+            understand the scene for the game they're playing. \
+            Describe the contents of the base64-encoded screenshots you will be given. \
+            Your response will be read aloud by a text-to-speech system; \
+            limit your response to at most two sentences. \
+            Do not use headings or explicit section makers. \
+            Do not speculate about the image's contents."
         ) // TODO: Make customizable
         .build()
         .map(ChatCompletionRequestMessage::System)
