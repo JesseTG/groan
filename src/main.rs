@@ -1,5 +1,6 @@
 mod types;
 mod service;
+mod web;
 
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
@@ -7,9 +8,7 @@ use async_openai::Client;
 use async_openai::config::OpenAIConfig;
 use clap::Parser;
 use warp::Filter;
-use bytes::Bytes;
-use crate::service::query_service;
-use crate::types::{InvalidRequestBody, RequestBody, RequestParams};
+use crate::service::{AiService, ServiceMessage};
 // NOTE: These doc comments are parsed and embedded into the CLI itself.
 
 /// groan - Good RetroArch OpenAI iNtegration
@@ -26,6 +25,11 @@ struct Cli {
 
     #[arg(short, long, default_value_t = 4404)]
     port: u16,
+
+    // TODO: Allow the console to bind on a separate interface
+
+    #[arg(short, long, default_value_t = 4405)]
+    console_port: u16,
 }
 
 
@@ -39,36 +43,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Do a basic query just to make sure the key is okay
     let _ = client.models().list().await?;
     // TODO: Make the exit printout look nicer
+    // TODO: Validate that the ports aren't equal
 
-    let service = warp::post() // Accept only POST requests...
-        // ...at the root path...
-        .and(warp::path::end())
-        // ...with query parameters that suit RequestParams...
-        .and(warp::query::<RequestParams>())
-        // ...regardless of the declared content type.
-        .and(warp::body::bytes())
-        // RetroArch declares application/x-www-form-urlencoded for its AI service requests,
-        // but the body is actually JSON;
-        // hence we deserialize explicitly because warp doesn't know how to handle this discrepancy.
-        .and_then(|params, body: Bytes| async move {
-            log::info!(target: "groan", "{:?}", params);
-            if let Ok(body) = serde_json::from_slice::<RequestBody>(body.iter().as_slice()) {
-                log::info!(target: "groan", "{:?}", body);
-                Ok((params, body))
-            } else {
-                Err(warp::reject::custom(InvalidRequestBody))
-            }
-        })
-        .untuple_one()
-        // query_service may run on another thread, possibly with multiple instances;
-        // therefore we create the client in an `Arc` and clone it for each call to this endpoint
-        .then(move |params, body| query_service(Arc::clone(&client), params, body))
-        .map(|response| warp::reply::json(&response))
-        .with(warp::trace::named("groan"));
+    let (sender, receiver) = tokio::sync::mpsc::channel::<ServiceMessage>(32);
+    let service = AiService::service(client, Some(sender));
 
-    warp::serve(service)
-        .run((cli.ip, cli.port))
-        .await;
+    tokio::join!(
+        warp::serve(service).run((cli.ip, cli.port)),
+    );
 
     Ok(())
 }
