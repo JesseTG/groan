@@ -1,5 +1,5 @@
 mod types;
-mod service;
+mod ai;
 mod web;
 
 use std::net::{IpAddr, Ipv4Addr};
@@ -8,7 +8,7 @@ use async_openai::Client;
 use async_openai::config::OpenAIConfig;
 use clap::Parser;
 use warp::Filter;
-use crate::service::{AiService, ServiceMessage};
+use crate::ai::{AiService, ServiceMessage};
 // NOTE: These doc comments are parsed and embedded into the CLI itself.
 
 /// groan - Good RetroArch OpenAI iNtegration
