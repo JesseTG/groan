@@ -6,6 +6,9 @@
     "type": "git",
     "url": "git+https://github.com/JesseTG/groan.git"
   },
+  "scripts": {
+    "build": "esbuild assets/src/index.tsx --bundle --outdir=target/dist"
+  },
   "bugs": {
     "url": "https://github.com/JesseTG/groan/issues"
   },
