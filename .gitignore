@@ -11,3 +11,7 @@ target/
 
 # RustRover
 /.idea
+
+# NPM
+node_modules/
+package-lock.json
