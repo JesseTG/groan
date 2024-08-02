@@ -1,0 +1,13 @@
+{
+  "name": "groan",
+  "version": "0.0.0",
+  "description": "Good Retroarch OpenAI Integration",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JesseTG/groan.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JesseTG/groan/issues"
+  },
+  "homepage": "https://github.com/JesseTG/groan#readme"
+}
