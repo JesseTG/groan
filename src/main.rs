@@ -8,6 +8,7 @@ use async_openai::Client;
 use clap::Parser;
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
+use crate::web::WebConsoleService;
 // NOTE: These doc comments are parsed and embedded into the CLI itself.
 
 /// groan - Good RetroArch OpenAI iNtegration
@@ -45,9 +46,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // TODO: Validate that the ports aren't equal
 
     let (sender, receiver) = tokio::sync::mpsc::channel::<ServiceMessage>(32);
-    let service = AiService::service(client, Some(sender));
+    let ai_service = AiService::service(client, Some(sender));
+    let web_service = WebConsoleService::service(receiver);
 
-    tokio::join!(warp::serve(service).run((cli.ip, cli.port)),);
+    tokio::join!(
+        warp::serve(ai_service).run((cli.ip, cli.port)),
+        warp::serve(web_service).run((cli.ip, cli.console_port))
+    );
 
     Ok(())
 }
