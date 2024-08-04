@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use crate::ai::MessageReceiver;
 use warp::http::Response;
 use warp::{Filter, Rejection};
@@ -11,8 +12,12 @@ const INDEX_JS: &str = include_str!(concat!(env!("OUT_DIR"), "/index.js"));
 const STYLE_CSS: &str = include_str!("../node_modules/eternium/eternium.css");
 
 impl WebConsoleService {
-    pub(crate) fn service(
-        receiver: MessageReceiver,
+    pub(crate) fn new(receiver: MessageReceiver) -> Arc<Self> {
+        Arc::new(Self { receiver })
+    }
+    
+    pub(crate) fn server_filter(
+        &self
     ) -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> + Clone {
         let index_html = warp::get()
             .and(warp::path::end())

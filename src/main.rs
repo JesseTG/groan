@@ -47,11 +47,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (sender, receiver) = tokio::sync::mpsc::channel::<ServiceMessage>(32);
     let ai_service = AiService::service(client, Some(sender));
-    let web_service = WebConsoleService::service(receiver);
+    let web_service = WebConsoleService::new(receiver);
 
     tokio::join!(
         warp::serve(ai_service).run((cli.ip, cli.port)),
-        warp::serve(web_service).run((cli.ip, cli.console_port))
+        warp::serve(web_service.server_filter()).run((cli.ip, cli.console_port))
     );
 
     Ok(())
