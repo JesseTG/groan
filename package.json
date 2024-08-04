@@ -7,7 +7,7 @@
     "url": "git+https://github.com/JesseTG/groan.git"
   },
   "scripts": {
-    "build": "esbuild assets/src/index.tsx --bundle --outdir=target/dist"
+    "build": "ts-node-esm build.mts"
   },
   "bugs": {
     "url": "https://github.com/JesseTG/groan/issues"
@@ -15,11 +15,14 @@
   "homepage": "https://github.com/JesseTG/groan#readme",
   "devDependencies": {
     "@ariakit/react": "^0.4.7",
+    "@types/node": "^18.15.11",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "esbuild": "^0.17.4",
+    "eternium": "0.2.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "ts-node": "^10.9.2"
   }
 }

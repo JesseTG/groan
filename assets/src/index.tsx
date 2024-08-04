@@ -14,3 +14,7 @@ function App() {
         </>
     );
 }
+
+let root = document.getElementById("root");
+console.log(root);
+createRoot(root!).render(<App />);
