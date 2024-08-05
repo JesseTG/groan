@@ -11,6 +11,7 @@ use async_openai::Client;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::sync::atomic::AtomicU64;
 use tokio::sync::mpsc::{Receiver, Sender};
 use warp::Filter;
 
@@ -20,6 +21,7 @@ pub(crate) type MessageReceiver = Receiver<ServiceMessage>;
 pub(crate) struct AiService {
     client: Arc<Client<OpenAIConfig>>,
     sender: Option<MessageSender>,
+    next_id: AtomicU64,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -40,11 +42,14 @@ pub(crate) enum ServiceMessage {
 }
 
 impl AiService {
+    pub(crate) fn next_id(&self) -> u64 {
+        self.next_id.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+    }
     pub(crate) fn service(
         client: Arc<Client<OpenAIConfig>>,
         sender: Option<MessageSender>,
     ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-        let service = Arc::new(Self { client, sender });
+        let service = Arc::new(Self { client, sender, next_id: AtomicU64::new(0) });
 
         warp::post() // Accept only POST requests...
             // ...at the root path...
