@@ -15,8 +15,8 @@ use std::sync::atomic::AtomicU64;
 use tokio::sync::mpsc::{Receiver, Sender};
 use warp::Filter;
 
-pub(crate) type MessageSender = Sender<ServiceMessage>;
-pub(crate) type MessageReceiver = Receiver<ServiceMessage>;
+pub(crate) type MessageSender = Sender<(u64, ServiceMessage)>;
+pub(crate) type MessageReceiver = Receiver<(u64, ServiceMessage)>;
 
 pub(crate) struct AiService {
     client: Arc<Client<OpenAIConfig>>,
@@ -37,8 +37,10 @@ pub(crate) struct ServiceResponse {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub(crate) enum ServiceMessage {
-    Request(ServiceRequest),
-    Response(ServiceResponse),
+    ClientRequest(ServiceRequest),
+    OpenAiRequest,
+    ClientResponse(ServiceResponse),
+    OpenAiResponse,
 }
 
 impl AiService {
@@ -65,10 +67,11 @@ impl AiService {
             // but the body is actually JSON;
             // hence we deserialize explicitly because warp doesn't know how to handle this discrepancy.
             .and_then(|params, body: Bytes, service: Arc<AiService>| async move {
+                let request_id = service.next_id();
                 log::info!(target: "groan", "{:?}", params);
                 if let Ok(body) = serde_json::from_slice::<RequestBody>(body.iter().as_slice()) {
                     log::info!(target: "groan", "{:?}", body);
-                    Ok((params, body))
+                    Ok((request_id, params, body, service))
                 } else {
                     Err(warp::reject::custom(InvalidRequestBody))
                 }
@@ -77,9 +80,11 @@ impl AiService {
             .untuple_one()
             // query_service may run on another thread, possibly with multiple instances;
             // therefore we create the client in an `Arc` and clone it for each call to this endpoint
-            .then(move |params, body, service| AiService::query_service(service, params, body))
+            .then(move |id, params, body, service| AiService::query_service(service, params, body))
             // Now that we've got the response, convert it to JSON...
-            .map(|response| warp::reply::json(&response))
+            .map(|response| {
+                warp::reply::json(&response)
+            })
             .with(warp::trace::named("groan"))
     }
 

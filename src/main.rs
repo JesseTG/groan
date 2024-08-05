@@ -2,13 +2,13 @@ mod ai;
 mod types;
 mod web;
 
-use crate::ai::{AiService, ServiceMessage};
+use crate::ai::AiService;
+use crate::web::WebConsoleService;
 use async_openai::config::OpenAIConfig;
 use async_openai::Client;
 use clap::Parser;
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
-use crate::web::WebConsoleService;
 // NOTE: These doc comments are parsed and embedded into the CLI itself.
 
 /// groan - Good RetroArch OpenAI iNtegration
@@ -45,13 +45,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // TODO: Make the exit printout look nicer
     // TODO: Validate that the ports aren't equal
 
-    let (sender, receiver) = tokio::sync::mpsc::channel::<ServiceMessage>(32);
+    let (sender, receiver) = tokio::sync::mpsc::channel(32);
     let ai_service = AiService::service(client, Some(sender));
-    let web_service = WebConsoleService::new(receiver);
+    let mut web_service = WebConsoleService::new();
 
     tokio::join!(
         warp::serve(ai_service).run((cli.ip, cli.port)),
-        warp::serve(web_service.server_filter()).run((cli.ip, cli.console_port))
+        warp::serve(WebConsoleService::server_filter()).run((cli.ip, cli.console_port)),
+        web_service.poll_task(receiver),
     );
 
     Ok(())
