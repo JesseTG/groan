@@ -58,10 +58,13 @@ impl AiService {
             .and(warp::query::<RequestParams>())
             // ...regardless of the declared content type.
             .and(warp::body::bytes())
+            // ...and pass along the service object itself.
+            // (Necessary so that the closure in `and_then` can implement `Fn`.)
+            .and(warp::any().map(move || service.clone()))
             // RetroArch declares application/x-www-form-urlencoded for its AI service requests,
             // but the body is actually JSON;
             // hence we deserialize explicitly because warp doesn't know how to handle this discrepancy.
-            .and_then(|params, body: Bytes| async move {
+            .and_then(|params, body: Bytes, service: Arc<AiService>| async move {
                 log::info!(target: "groan", "{:?}", params);
                 if let Ok(body) = serde_json::from_slice::<RequestBody>(body.iter().as_slice()) {
                     log::info!(target: "groan", "{:?}", body);
@@ -72,8 +75,6 @@ impl AiService {
             })
             // Then we untuple the parameters and body...
             .untuple_one()
-            // ...and pass along the service object itself.
-            .and(warp::any().map(move || service.clone()))
             // query_service may run on another thread, possibly with multiple instances;
             // therefore we create the client in an `Arc` and clone it for each call to this endpoint
             .then(move |params, body, service| AiService::query_service(service, params, body))
