@@ -14,32 +14,35 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use tokio::sync::mpsc::{Receiver, Sender};
 use warp::Filter;
+use warp::hyper::HeaderMap;
 
 pub(crate) type MessageSender = Sender<(u64, ServiceMessage)>;
 pub(crate) type MessageReceiver = Receiver<(u64, ServiceMessage)>;
 
 pub(crate) struct AiService {
     client: Arc<Client<OpenAIConfig>>,
-    sender: Option<MessageSender>,
+    sender: MessageSender,
     next_id: AtomicU64,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Debug)]
 pub(crate) struct ServiceRequest {
-    pub(crate) params: RequestParams,
-    pub(crate) body: RequestBody,
+    pub(crate) headers: HeaderMap,
+    pub(crate) params: String,
+    pub(crate) body: Bytes,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Debug)]
 pub(crate) struct ServiceResponse {
-    pub(crate) body: ResponseBody,
+    pub(crate) headers: HeaderMap,
+    pub(crate) body: Bytes,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Debug)]
 pub(crate) enum ServiceMessage {
-    ClientRequest(ServiceRequest),
+    ClientRequest(HeaderMap, String, Bytes),
     OpenAiRequest,
-    ClientResponse(ServiceResponse),
+    ClientResponse(HeaderMap, Bytes),
     OpenAiResponse,
 }
 
@@ -49,7 +52,7 @@ impl AiService {
     }
     pub(crate) fn service(
         client: Arc<Client<OpenAIConfig>>,
-        sender: Option<MessageSender>,
+        sender: MessageSender,
     ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
         let service = Arc::new(Self { client, sender, next_id: AtomicU64::new(0) });
 
@@ -58,6 +61,9 @@ impl AiService {
             .and(warp::path::end())
             // ...with query parameters that suit RequestParams...
             .and(warp::query::<RequestParams>())
+            .and(warp::query::raw())
+            // ...and including the HTTP headers...
+            .and(warp::header::headers_cloned())
             // ...regardless of the declared content type.
             .and(warp::body::bytes())
             // ...and pass along the service object itself.
@@ -66,9 +72,12 @@ impl AiService {
             // RetroArch declares application/x-www-form-urlencoded for its AI service requests,
             // but the body is actually JSON;
             // hence we deserialize explicitly because warp doesn't know how to handle this discrepancy.
-            .and_then(|params, body: Bytes, service: Arc<AiService>| async move {
+            .and_then(|params: RequestParams, raw_params: String, headers: HeaderMap, body: Bytes, service: Arc<AiService>| async move {
                 let request_id = service.next_id();
-                log::info!(target: "groan", "{:?}", params);
+                log::info!(target: "groan", "{:?}", params); 
+                let request = ServiceMessage::ClientRequest(headers, raw_params, body.clone());
+                service.sender.send((request_id, request)).await.expect("TODO: panic message");
+
                 if let Ok(body) = serde_json::from_slice::<RequestBody>(body.iter().as_slice()) {
                     log::info!(target: "groan", "{:?}", body);
                     Ok((request_id, params, body, service))

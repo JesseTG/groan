@@ -46,7 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // TODO: Validate that the ports aren't equal
 
     let (sender, receiver) = tokio::sync::mpsc::channel(32);
-    let ai_service = AiService::service(client, Some(sender));
+    let ai_service = AiService::service(client, sender);
     let mut web_service = WebConsoleService::new();
 
     tokio::join!(

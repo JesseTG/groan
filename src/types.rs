@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 // Types based on descriptions given in https://docs.libretro.com/guides/ai-service/#for-developers
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub(crate) struct RequestParams {
     pub(crate) source_lang: Option<String>,
     pub(crate) target_lang: Option<String>,

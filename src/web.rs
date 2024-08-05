@@ -1,8 +1,11 @@
 use crate::ai::ServiceMessage::*;
 use crate::ai::{MessageReceiver, ServiceRequest, ServiceResponse};
 use std::collections::HashMap;
-use warp::http::Response;
+use bytes::Bytes;
+use serde::{Deserialize, Serialize};
+use warp::http::{HeaderMap, Response};
 use warp::{Filter, Rejection};
+use crate::types::{RequestBody, RequestParams, ResponseBody};
 
 pub(crate) struct WebConsoleService {
     client_requests: HashMap<u64, ServiceRequest>,
@@ -40,23 +43,31 @@ impl WebConsoleService {
                 .body(INDEX_JS)
                 .unwrap()
         });
+        
+        // /api/client-request/:id/image
+        // /api/openai-request/:id
+        // /api/openai-response/:id
+        // /api/client-response/:id
+        
+        
+        
+        // TODO: Route for getting an image
+        // TODO: Route for getting a sound clip
+        // TODO: Route for getting a JSON blob
 
         warp::any().and(index_html.or(index_js).or(style_css))
     }
 
     pub(crate) async fn poll_task(&mut self, mut receiver: MessageReceiver) {
         while let Some((id, message)) = receiver.recv().await {
-            log::info!(target: "groan", "{:?}", message);
+            log::info!(target: "groan", "doge {:?}", message);
             match message {
-                ClientRequest(request) => {
+                ClientRequest(headers, params, body) => {
                     assert!(!self.client_requests.contains_key(&id));
-                    self.client_requests.insert(id, request);
+                    self.client_requests.insert(id, ServiceRequest {headers, params, body});
                 }
                 OpenAiRequest => {}
-                ClientResponse(response) => {
-                    assert!(self.client_requests.contains_key(&id));
-                    assert!(!self.client_responses.contains_key(&id));
-                    self.client_responses.insert(id, response);
+                ClientResponse(headers, body) => {
                 }
                 OpenAiResponse => {}
             }
