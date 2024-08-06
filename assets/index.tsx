@@ -2,6 +2,8 @@ import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Button, Dialog, DialogHeading } from "@ariakit/react";
 
+import "@assets/index.css"; // So the CSS is built by the build script
+
 function App() {
     const [open, setOpen] = useState(false);
     return (

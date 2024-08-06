@@ -18,8 +18,9 @@
     "sourceMap": true,
     "baseUrl": ".",
     "paths": {
-      "@src/*": ["assets/src/*"],
+      "@src/*": ["assets/*"],
+      "@assets/*": ["assets/*"],
     }
   },
-  "include": ["assets/src", "build.mts"],
+  "include": ["assets", "build.mts"],
 }

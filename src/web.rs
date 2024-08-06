@@ -27,9 +27,9 @@ pub(crate) struct MessageCache {
     request_images: HashMap<u64, Vec<u8>>,
 }
 
-const INDEX_HTML: &str = include_str!("../assets/index.html");
+const INDEX_HTML: &str = include_str!(concat!(env!("OUT_DIR"), "/index.html"));
 const INDEX_JS: &str = include_str!(concat!(env!("OUT_DIR"), "/index.js"));
-const STYLE_CSS: &str = include_str!("../node_modules/eternium/eternium.css");
+const INDEX_CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/index.css"));
 
 impl WebConsoleService {
     pub(crate) fn new() -> Self {
@@ -43,10 +43,10 @@ impl WebConsoleService {
             .and(warp::path::end())
             .map(move || warp::reply::html(INDEX_HTML));
 
-        let style_css = warp::get().and(warp::path("style.css")).map(|| {
+        let style_css = warp::get().and(warp::path("index.css")).map(|| {
             Response::builder()
                 .header("Content-Type", "text/css; charset=utf-8")
-                .body(STYLE_CSS)
+                .body(INDEX_CSS)
                 .unwrap()
         });
 

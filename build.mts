@@ -6,14 +6,34 @@ if (env.OUT_DIR === undefined) {
 }
 
 import * as esbuild from 'esbuild'
-import path from 'node:path';
+import { createRequire } from "node:module";
+import { html } from "@esbuilder/html";
+import stylePlugin from "esbuild-style-plugin";
+const require = createRequire(import.meta.url);
+
 const prompt = "Building web frontend...";
 console.time(prompt);
 await esbuild.build({
-    entryPoints: ['assets/src/index.tsx'],
+    entryPoints: ['assets/index.html'],
     bundle: true,
     // cargo defines OUT_DIR to be where the build artifacts are place
-    outfile: path.join(env.OUT_DIR, 'index.js'),
+    outdir: env.OUT_DIR,
+    assetNames: "[name]",
+    entryNames: "[name]",
+    metafile: true,
+    plugins: [
+        html({
+            entryNames: "[name]",
+            assetNames: "[name]",
+        }),
+        stylePlugin({
+            postcss: {
+                plugins: [
+                    require("postcss-import"),
+                ],
+            }
+        }),
+    ],
 });
 
 console.timeEnd(prompt);
