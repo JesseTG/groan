@@ -50,8 +50,8 @@ pub(crate) struct ServiceResponse {
 pub(crate) enum ServiceMessage {
     ClientRequest(HeaderMap, String, Bytes),
     OpenAiRequest(OpenAiRequest),
-    ClientResponse(HeaderMap, Bytes),
     OpenAiResponse(OpenAiResponse),
+    ClientResponse(HeaderMap, Bytes),
 }
 
 impl From<CreateChatCompletionResponse> for ServiceMessage {
