@@ -1,10 +1,12 @@
 use npm_rs::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // These files are used to control how the frontend is built
     println!("cargo::rerun-if-changed=assets"); // Assets are embedded in the binary
-    println!("cargo::rerun-if-changed=package.json"); // package.json controls how the frontend is built
-    println!("cargo::rerun-if-changed=tsconfig.json");
-    println!("cargo::rerun-if-changed=build.mts"); // build.mts is the build script for the frontend
+    println!("cargo::rerun-if-changed=package.json"); // List of NPM dependencies
+    println!("cargo::rerun-if-changed=package-lock.json"); // List of installed NPM dependencies
+    println!("cargo::rerun-if-changed=tsconfig.json"); // TypeScript configuration
+    println!("cargo::rerun-if-changed=build.mts"); // build script for the frontend
 
     let exit_status = NpmEnv::default()
         .with_node_env(&NodeEnv::from_cargo_profile().unwrap_or_default())
