@@ -13,14 +13,13 @@ const require = createRequire(import.meta.url);
 
 const prompt = "Building web frontend...";
 console.time(prompt);
+
 await esbuild.build({
-    entryPoints: ['assets/index.html'],
+    entryPoints: ['assets/index.html', 'assets/app.tsx'],
     bundle: true,
     // cargo defines OUT_DIR to be where the build artifacts are place
     outdir: env.OUT_DIR,
     assetNames: "[name]",
-    entryNames: "[name]",
-    metafile: true,
     plugins: [
         html({
             entryNames: "[name]",

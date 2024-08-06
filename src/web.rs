@@ -27,9 +27,9 @@ pub(crate) struct MessageCache {
     request_images: HashMap<u64, Vec<u8>>,
 }
 
-const INDEX_HTML: &str = include_str!(concat!(env!("OUT_DIR"), "/index.html"));
-const INDEX_JS: &str = include_str!(concat!(env!("OUT_DIR"), "/index.js"));
-const INDEX_CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/index.css"));
+const HTML: &str = include_str!(concat!(env!("OUT_DIR"), "/index.html"));
+const JS: &str = include_str!(concat!(env!("OUT_DIR"), "/app.js"));
+const CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/app.css"));
 
 impl WebConsoleService {
     pub(crate) fn new() -> Self {
@@ -41,19 +41,19 @@ impl WebConsoleService {
     pub(crate) fn server_filter(self) -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> + Clone {
         let index_html = warp::get()
             .and(warp::path::end())
-            .map(move || warp::reply::html(INDEX_HTML));
+            .map(move || warp::reply::html(HTML));
 
-        let style_css = warp::get().and(warp::path("index.css")).map(|| {
+        let style_css = warp::get().and(warp::path("app.css")).map(|| {
             Response::builder()
                 .header("Content-Type", "text/css; charset=utf-8")
-                .body(INDEX_CSS)
+                .body(CSS)
                 .unwrap()
         });
 
-        let index_js = warp::get().and(warp::path("index.js")).map(|| {
+        let index_js = warp::get().and(warp::path("app.js")).map(|| {
             Response::builder()
                 .header("Content-Type", "text/javascript; charset=utf-8")
-                .body(INDEX_JS)
+                .body(JS)
                 .unwrap()
         });
 
