@@ -18,6 +18,11 @@ pub(crate) struct WebConsoleService {
     cache: Arc<Mutex<MessageCache>>
 }
 
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub(crate) struct RequestIds {
+    pub(crate) ids: Vec<u64>,
+}
+
 #[derive(Default)]
 pub(crate) struct MessageCache {
     client_requests: HashMap<u64, ServiceRequest>,
@@ -56,6 +61,22 @@ impl WebConsoleService {
                 .body(JS)
                 .unwrap()
         });
+
+        let me = self.clone();
+        let requests = warp::path!("api" / "request")
+            .and(warp::get())
+            .then(move || {
+                let me = me.clone();
+                async move {
+                    let cache = me.cache.lock().await;
+                    let requests = RequestIds { ids: cache.client_requests.keys().cloned().collect::<Vec<_>>() };
+                    
+                    Response::builder()
+                        .header("Content-Type", "application/json")
+                        .body(serde_json::to_string(&requests).unwrap())
+                        .unwrap()
+                }
+            });
 
         let me = self.clone();
         let request = warp::path!("api" / "request" / u64)
@@ -104,7 +125,8 @@ impl WebConsoleService {
         // /api/request/:id/openai-response.json
         // /api/request/:id/response.json
 
-        let api = request
+        let api = requests
+            .or(request)
             .or(image);
 
 
