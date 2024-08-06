@@ -163,7 +163,7 @@ impl WebConsoleService {
                 ClientResponse(headers, body) => {
                     if let Err(e) = self.handle_client_response(id, headers, body).await {
                         log::error!("Error handling client response: {}", e);
-                    } 
+                    }
                 }
             }
         }
