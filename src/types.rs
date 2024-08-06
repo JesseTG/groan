@@ -21,19 +21,11 @@ pub(crate) enum OutputFormat {
 
 #[derive(Deserialize, Serialize, Debug, Default)]
 pub(crate) struct ResponseBody {
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        serialize_with = "base64_serialize::serialize_option"
-    )]
-    pub(crate) image: Option<Vec<u8>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) image: Option<String>,
 
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        serialize_with = "base64_serialize::serialize_option"
-    )]
-    pub(crate) sound: Option<Vec<u8>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) sound: Option<String>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) text: Option<String>,
