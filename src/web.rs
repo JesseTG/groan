@@ -21,6 +21,8 @@ pub(crate) struct WebConsoleService {
 #[derive(Default)]
 pub(crate) struct MessageCache {
     client_requests: HashMap<u64, ServiceRequest>,
+    openai_requests: HashMap<u64, crate::ai::OpenAiRequest>,
+    openai_responses: HashMap<u64, crate::ai::OpenAiResponse>,
     client_responses: HashMap<u64, ServiceResponse>,
     request_images: HashMap<u64, Vec<u8>>,
 }
@@ -122,8 +124,20 @@ impl WebConsoleService {
         let headers = HashMap::from_iter(headers.iter().map(|h| (h.0.to_string(), h.1.to_str().unwrap().to_string())));
 
         let mut cache = self.cache.lock().await;
+        assert!(!cache.client_requests.contains_key(&id));
         cache.client_requests.insert(id, ServiceRequest {headers, params, body});
         cache.request_images.insert(id, image);
+
+        Ok(())
+    }
+
+    async fn handle_client_response(&mut self, id: u64, headers: HeaderMap, body: Bytes) -> Result<(), Box<dyn Error>> {
+        let body = serde_json::from_slice::<Value>(body.iter().as_slice())?;
+        let headers = HashMap::from_iter(headers.iter().map(|h| (h.0.to_string(), h.1.to_str().unwrap().to_string())));
+
+        let mut cache = self.cache.lock().await;
+        assert!(cache.client_requests.contains_key(&id));
+        cache.client_responses.insert(id, ServiceResponse {headers, body});
 
         Ok(())
     }
@@ -132,14 +146,25 @@ impl WebConsoleService {
         while let Some((id, message)) = receiver.recv().await {
             match message {
                 ClientRequest(headers, params, body) => {
-                    assert!(!self.cache.lock().await.client_requests.contains_key(&id));
                     if let Err(e) = self.handle_client_request(id, headers, params, body).await {
                         log::error!("Error handling client request: {}", e);
                     }
                 }
-                OpenAiRequest(request) => { /* TODO */ }
-                ClientResponse(headers, body) => { /* TODO */ }
-                OpenAiResponse(response) => { /* TODO */ }
+                OpenAiRequest(request) => {
+                    let mut cache = self.cache.lock().await;
+                    assert!(cache.client_requests.contains_key(&id));
+                    cache.openai_requests.insert(id, request);
+                }
+                OpenAiResponse(response) => {
+                    let mut cache = self.cache.lock().await;
+                    assert!(cache.client_requests.contains_key(&id));
+                    cache.openai_responses.insert(id, response);
+                }
+                ClientResponse(headers, body) => {
+                    if let Err(e) = self.handle_client_response(id, headers, body).await {
+                        log::error!("Error handling client response: {}", e);
+                    } 
+                }
             }
         }
     }
