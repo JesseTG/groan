@@ -7,6 +7,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo::rerun-if-changed=tsconfig.json"); // TypeScript configuration
     println!("cargo::rerun-if-changed=build.mts"); // build script for the frontend
 
+    println!("Building frontend with NPM...");
     let exit_status = NpmEnv::default()
         .with_node_env(&NodeEnv::from_cargo_profile().unwrap_or_default())
         .init_env()
@@ -17,6 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if !exit_status.success() {
         return Err("Failed to build the frontend".into());
     }
+    println!("Built frontend");
 
     Ok(())
 }
