@@ -4,7 +4,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // These files are used to control how the frontend is built
     println!("cargo::rerun-if-changed=assets"); // Assets are embedded in the binary
     println!("cargo::rerun-if-changed=package.json"); // List of NPM dependencies
-    println!("cargo::rerun-if-changed=package-lock.json"); // List of installed NPM dependencies
     println!("cargo::rerun-if-changed=tsconfig.json"); // TypeScript configuration
     println!("cargo::rerun-if-changed=build.mts"); // build script for the frontend
 
