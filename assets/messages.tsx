@@ -1,37 +1,69 @@
-import {ReactNode, useState, useEffect} from "react";
-import {Collection, CollectionItem, Button, Dialog, DialogHeading} from "@ariakit/react";
+import {ReactNode, useState, useEffect, ReactElement} from "react";
+import {Collection, CollectionItem, Button, Dialog, DialogDismiss, DialogHeading} from "@ariakit/react";
 import useSWR from 'swr';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-function MessageButton({children}: { children: ReactNode }) {
+function Details() {
+    return (
+        <div>
+            <DialogDismiss className="button">OK</DialogDismiss>
+        </div>
+    )
+}
+
+function MessageButton({id, image, imageAlt, children}: { id: number, image?: string, imageAlt?: string, children: ReactNode }) {
     const [open, setOpen] = useState(false);
+
+    let imageElement: ReactElement | null = null;
+    if (image) {
+        imageElement = <img src={image} alt={imageAlt} height="48"/>;
+    }
     return (
         <>
-            <Button onClick={() => setOpen(true)}>{children}</Button>
-            <Dialog open={open} onClose={() => setOpen(false)}>
-                <DialogHeading>Message</DialogHeading>
-                <p>Message</p>
+            <Button className="button" onClick={() => setOpen(true)}>
+                {imageElement}
+            </Button>
+            <Dialog
+                open={open}
+                backdrop={false}
+                className="dialog"
+                onClose={() => setOpen(false)}
+                render={(props) => (
+                    <div className="backdrop" hidden={!open}>
+                        <div {...props} />
+                    </div>
+                )}
+            >
+                <DialogHeading className="heading">Request #{id}</DialogHeading>
+                {children}
+                <DialogDismiss className="button secondary">OK</DialogDismiss>
             </Dialog>
         </>
     );
 }
 
 export function ClientRequest({id}: { id: number }) {
+    const imageUrl = `/api/request/${id}/image`;
     return (
-        <MessageButton>
-            Request
+        <MessageButton id={id} image={imageUrl} imageAlt={`Screenshot #${id}`}>
+            <img src={imageUrl} alt={`Screenshot #${id}`}/>
+            <dl>
+                <dt>doge</dt>
+                <dd>france</dd>
+                <dt>wow</dt>
+                <dd>much test</dd>
+            </dl>
         </MessageButton>
-        // TODO: Display the image inline
         // TODO: Display the JSON object inline
     );
 }
 
 export function OpenAiRequest({id}: { id: number }) {
     return (
-        <Button>
+        <MessageButton id={id}>
             Request
-        </Button>
+        </MessageButton>
     );
 }
 
@@ -54,8 +86,7 @@ export function ClientResponse({id}: { id: number }) {
 
 export function ServiceCall({id}: { id: number }) {
     return (<>
-        <ClientRequest id={id}>
-        </ClientRequest>
+        <ClientRequest id={id} />
         <OpenAiRequest id={id}>
         </OpenAiRequest>
         <OpenAiResponse id={id}>
