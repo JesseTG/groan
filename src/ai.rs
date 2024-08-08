@@ -152,11 +152,11 @@ impl AiService {
             .content(
                 "You are a narration service helping a visually impaired player \
             understand the scene for the game they're playing. \
-            Describe the contents of the base64-encoded screenshots you will be given. \
-            Your response will be read aloud by a text-to-speech system; \
-            limit your response to at most two sentences. \
+            Describe the contents of the screenshots you will be given. \
+            Limit your response to one sentence. \
             Do not use headings or explicit section makers. \
-            Do not speculate about the image's contents.",
+            Do not speculate about the image's contents. \
+            Use video game terminology if appropriate.",
             ) // TODO: Make customizable
             .build()
             .map(ChatCompletionRequestMessage::System)
