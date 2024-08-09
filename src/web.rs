@@ -23,12 +23,28 @@ pub(crate) struct RequestIds {
     pub(crate) ids: Vec<u64>,
 }
 
+#[derive(Serialize)]
+pub(crate) struct ServiceCall {
+    pub(crate) client_request: ServiceRequest,
+    pub(crate) openai_request: Option<crate::ai::OpenAiRequest>,
+    pub(crate) openai_response: Option<crate::ai::OpenAiResponse>,
+    pub(crate) client_response: Option<ServiceResponse>,
+}
+
+impl ServiceCall {
+    pub(crate) fn new(client_request: ServiceRequest) -> Self {
+        Self {
+            client_request,
+            openai_request: None,
+            openai_response: None,
+            client_response: None,
+        }
+    }
+}
+
 #[derive(Default)]
 pub(crate) struct MessageCache {
-    client_requests: HashMap<u64, ServiceRequest>,
-    openai_requests: HashMap<u64, crate::ai::OpenAiRequest>,
-    openai_responses: HashMap<u64, crate::ai::OpenAiResponse>,
-    client_responses: HashMap<u64, ServiceResponse>,
+    service_calls: HashMap<u64, ServiceCall>,
     request_images: HashMap<u64, Vec<u8>>,
 }
 
@@ -69,7 +85,7 @@ impl WebConsoleService {
                 let me = me.clone();
                 async move {
                     let cache = me.cache.lock().await;
-                    let requests = RequestIds { ids: cache.client_requests.keys().cloned().collect::<Vec<_>>() };
+                    let requests = RequestIds { ids: cache.service_calls.keys().cloned().collect::<Vec<_>>() };
                     
                     Response::builder()
                         .header("Content-Type", "application/json")
@@ -84,10 +100,10 @@ impl WebConsoleService {
             .and_then(move |id: u64| {
                 let me = me.clone();
                 async move {
-                    if let Some(request) = me.cache.lock().await.client_requests.get(&id) {
+                    if let Some(call) = me.cache.lock().await.service_calls.get(&id) {
                         let response = Response::builder()
                             .header("Content-Type", "application/json")
-                            .body(serde_json::to_string(request).unwrap())
+                            .body(serde_json::to_string(call).unwrap())
                             .unwrap();
 
                         return Ok(response);
@@ -103,36 +119,21 @@ impl WebConsoleService {
             .and_then(move |id: u64| {
                 let me = self.clone();
                 async move {
-                    if let Some(image) = me.cache.lock().await.request_images.get(&id) {
-                        let image = image.clone();
-                        let response = Response::builder()
-                            .header("Content-Type", "image/png")
-                            .body(image)
-                            .unwrap();
+                    let image = me.cache.lock().await.request_images.get(&id).ok_or_else(warp::reject::not_found)?.clone();
+                    let response = Response::builder()
+                        .header("Content-Type", "image/png")
+                        .body(image)
+                        .unwrap();
 
-                        return Ok(response);
-                    }
-                    else {
-                        Err(warp::reject::not_found())
-                    }
+                    Ok::<_, Rejection>(response)
                 }
-
             });
-
-        // /api/request/:id/request.json
-        // /api/request/:id/image
-        // /api/request/:id/openai-request.json
-        // /api/request/:id/openai-response.json
-        // /api/request/:id/response.json
 
         let api = requests
             .or(request)
             .or(image);
 
-
-        // TODO: Route for getting an image
         // TODO: Route for getting a sound clip
-        // TODO: Route for getting a JSON blob
 
         warp::any()
             .and(index_html.or(index_js).or(style_css).or(api))
@@ -146,8 +147,8 @@ impl WebConsoleService {
         let headers = HashMap::from_iter(headers.iter().map(|h| (h.0.to_string(), h.1.to_str().unwrap().to_string())));
 
         let mut cache = self.cache.lock().await;
-        assert!(!cache.client_requests.contains_key(&id));
-        cache.client_requests.insert(id, ServiceRequest {headers, params, body});
+        assert!(!cache.service_calls.contains_key(&id));
+        cache.service_calls.insert(id, ServiceCall::new(ServiceRequest {headers, params, body}));
         cache.request_images.insert(id, image);
 
         Ok(())
@@ -158,8 +159,9 @@ impl WebConsoleService {
         let headers = HashMap::from_iter(headers.iter().map(|h| (h.0.to_string(), h.1.to_str().unwrap().to_string())));
 
         let mut cache = self.cache.lock().await;
-        assert!(cache.client_requests.contains_key(&id));
-        cache.client_responses.insert(id, ServiceResponse {headers, body});
+        assert!(cache.service_calls.contains_key(&id));
+        let call = cache.service_calls.get_mut(&id).unwrap();
+        call.client_response = Some(ServiceResponse {headers, body});
 
         Ok(())
     }
@@ -174,13 +176,15 @@ impl WebConsoleService {
                 }
                 OpenAiRequest(request) => {
                     let mut cache = self.cache.lock().await;
-                    assert!(cache.client_requests.contains_key(&id));
-                    cache.openai_requests.insert(id, request);
+                    assert!(cache.service_calls.contains_key(&id));
+                    let call = cache.service_calls.get_mut(&id).unwrap();
+                    call.openai_request = Some(request);
                 }
                 OpenAiResponse(response) => {
                     let mut cache = self.cache.lock().await;
-                    assert!(cache.client_requests.contains_key(&id));
-                    cache.openai_responses.insert(id, response);
+                    assert!(cache.service_calls.contains_key(&id));
+                    let call = cache.service_calls.get_mut(&id).unwrap();
+                    call.openai_response = Some(response);
                 }
                 ClientResponse(headers, body) => {
                     if let Err(e) = self.handle_client_response(id, headers, body).await {

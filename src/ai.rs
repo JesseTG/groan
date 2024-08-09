@@ -30,17 +30,17 @@ pub(crate) struct ServiceRequest {
     pub(crate) body: Value,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub(crate) enum OpenAiRequest {
     CreateChatCompletionRequest(CreateChatCompletionRequest),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub(crate) enum OpenAiResponse {
     CreateChatCompletionResponse(CreateChatCompletionResponse),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub(crate) struct ServiceResponse {
     pub(crate) headers: HashMap<String, String>,
     pub(crate) body: Value,
