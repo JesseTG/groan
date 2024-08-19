@@ -1,6 +1,8 @@
 import useSWR from "swr";
 import {Button, Dialog, DialogDismiss, DialogHeading, HeadingLevel, Heading} from "@ariakit/react";
 import {ReactElement, useState} from "react";
+import ChatCompletionCreateParams from "openai";
+import ChatCompletion from "openai";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 type Headers = { [key: string]: string };
@@ -57,12 +59,12 @@ type ResponseBody = {
 }
 
 type ServiceCallArgs = { id: number };
-type ServiceCallState = { data: ServiceCallRecord | undefined, error: any, isLoading: boolean };
+type ServiceCallState = { data?: ServiceCallRecord, error: any, isLoading: boolean };
 type ServiceCallRecord = {
     id: number,
     client_request: ServiceRequest,
-    openai_request?: object, // OpenAiRequest,
-    openai_response?: object, //OpenAiResponse
+    openai_request?: {CreateChatCompletionRequest: ChatCompletionCreateParams}, // OpenAiRequest,
+    openai_response?: {CreateChatCompletionResponse: ChatCompletion}, //OpenAiResponse
     client_response?: ServiceResponse, // ServiceResponse,
 };
 
@@ -100,7 +102,7 @@ function ClientRequest({request}: { request: ServiceRequest }) {
     );
 }
 
-function OpenAiRequest({request}: { request: object | undefined }) {
+function OpenAiRequest({request}: { request?: ChatCompletionCreateParams }) {
     if (!request) {
         return <></>;
     }
@@ -113,7 +115,7 @@ function OpenAiRequest({request}: { request: object | undefined }) {
     );
 }
 
-function OpenAiResponse({response}: { response: object | undefined }) {
+function OpenAiResponse({response}: { response?: ChatCompletion }) {
     if (!response) {
         return <></>;
     }
@@ -173,8 +175,8 @@ export default function ServiceCall({id}: ServiceCallArgs) {
             <img src={imageUrl} alt={`Screenshot #${id}`}/>
             <div>
                 <ClientRequest request={data!.client_request}/>
-                <OpenAiRequest request={data!.openai_request}/>
-                <OpenAiResponse response={data!.openai_response}/>
+                <OpenAiRequest request={data?.openai_request?.CreateChatCompletionRequest}/>
+                <OpenAiResponse response={data!.openai_response?.CreateChatCompletionResponse}/>
                 <ClientResponse response={data!.client_response}/>
             </div>
 

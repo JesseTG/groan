@@ -22,6 +22,7 @@
     "esbuild": "^0.17.4",
     "esbuild-style-plugin": "^1.6.1",
     "eternium": "0.2.1",
+    "openai": "^4.55.3",
     "postcss-import": "^16.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
