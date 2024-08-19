@@ -20,6 +20,7 @@ await esbuild.build({
     // cargo defines OUT_DIR to be where the build artifacts are place
     outdir: env.OUT_DIR,
     assetNames: "[name]",
+    sourcemap: true,
     plugins: [
         html({
             entryNames: "[name]",

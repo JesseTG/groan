@@ -50,7 +50,9 @@ pub(crate) struct MessageCache {
 
 const HTML: &str = include_str!(concat!(env!("OUT_DIR"), "/index.html"));
 const JS: &str = include_str!(concat!(env!("OUT_DIR"), "/app.js"));
+const JS_MAP: &str = include_str!(concat!(env!("OUT_DIR"), "/app.js.map"));
 const CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/app.css"));
+const CSS_MAP: &str = include_str!(concat!(env!("OUT_DIR"), "/app.css.map"));
 
 impl WebConsoleService {
     pub(crate) fn new() -> Self {
@@ -71,10 +73,24 @@ impl WebConsoleService {
                 .unwrap()
         });
 
+        let style_css_map = warp::get().and(warp::path("app.css.map")).map(|| {
+            Response::builder()
+                .header("Content-Type", "application/json; charset=utf-8")
+                .body(CSS_MAP)
+                .unwrap()
+        });
+
         let index_js = warp::get().and(warp::path("app.js")).map(|| {
             Response::builder()
                 .header("Content-Type", "text/javascript; charset=utf-8")
                 .body(JS)
+                .unwrap()
+        });
+
+        let index_js_map = warp::get().and(warp::path("app.js.map")).map(|| {
+            Response::builder()
+                .header("Content-Type", "application/json; charset=utf-8")
+                .body(JS_MAP)
                 .unwrap()
         });
 
@@ -129,6 +145,12 @@ impl WebConsoleService {
                 }
             });
 
+        let static_files = index_html
+            .or(index_js)
+            .or(style_css)
+            .or(index_js_map)
+            .or(style_css_map);
+
         let api = requests
             .or(request)
             .or(image);
@@ -136,7 +158,7 @@ impl WebConsoleService {
         // TODO: Route for getting a sound clip
 
         warp::any()
-            .and(index_html.or(index_js).or(style_css).or(api))
+            .and(static_files.or(api))
             .with(warp::trace::named("groan"))
     }
 
