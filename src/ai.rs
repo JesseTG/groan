@@ -1,14 +1,16 @@
 use std::collections::HashMap;
+use std::error::Error;
 use crate::types::{
     ImageOutputFormat, InvalidRequestBody, RequestBody, RequestParams, ResponseBody,
 };
 use async_openai::config::OpenAIConfig;
-use async_openai::types::{ChatCompletionRequestMessage, ChatCompletionRequestMessageContentPart, ChatCompletionRequestMessageContentPartImageArgs, ChatCompletionRequestSystemMessageArgs, ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequest, CreateChatCompletionRequestArgs, CreateChatCompletionResponse};
+use async_openai::types::{ChatCompletionRequestMessage, ChatCompletionRequestMessageContentPart, ChatCompletionRequestMessageContentPartImageArgs, ChatCompletionRequestSystemMessageArgs, ChatCompletionRequestUserMessageArgs, ChatCompletionResponseMessage, CreateChatCompletionRequest, CreateChatCompletionRequestArgs, CreateChatCompletionResponse};
 use async_openai::Client;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
+use async_openai::error::OpenAIError;
 use serde_json::Value;
 use tokio::sync::mpsc::{Receiver, Sender};
 use warp::Filter;
@@ -114,7 +116,12 @@ impl AiService {
             .untuple_one()
             // query_service may run on another thread, possibly with multiple instances;
             // therefore we create the client in an `Arc` and clone it for each call to this endpoint
-            .then(move |id, params, body, service| AiService::query_service(id, service, params, body))
+            .then(move |id, params, body, service| async move {
+                AiService::query_service(id, service, params, body).await.unwrap_or_else(|e| {
+                    log::error!(target: "groan", "{:?}", e);
+                    ResponseBody::error(format!("{:?}", e))
+                })
+            })
             // Now that we've got the response, convert it to JSON...
             .map(|response| {
                 warp::reply::json(&response)
@@ -127,7 +134,7 @@ impl AiService {
         service: Arc<AiService>,
         params: RequestParams,
         body: RequestBody,
-    ) -> ResponseBody {
+    ) -> Result<ResponseBody, Box<dyn Error>> {
         match params
             .output
             .iter()
@@ -136,31 +143,30 @@ impl AiService {
             .as_slice()
         {
             ["text", ..] => AiService::send_chat_request(id, service, params, body).await,
-            ["sound", "wav", ..] => ResponseBody::error("Sound not implemented"),
-            ["image", "png", "png-a", ..] => ResponseBody::error("Image not implemented"),
-            _ => ResponseBody::error(format!("Unknown output format {:?}", params.output)),
+            ["sound", "wav", ..] => Ok(ResponseBody::error("Not implemented")),
+            ["image", "png", "png-a", ..] => Ok(ResponseBody::error("Not implemented")),
+            _ => Ok(ResponseBody::error(format!("Unknown output format {:?}", params.output))),
         }
     }
 
-    async fn send_chat_request(
+    async fn chat_completion(
         id: u64,
-        service: Arc<AiService>,
+        service: &Arc<AiService>,
         params: RequestParams,
         body: RequestBody,
-    ) -> ResponseBody {
+    ) -> Result<CreateChatCompletionResponse, Box<dyn Error>> {
         let system = ChatCompletionRequestSystemMessageArgs::default()
             .content(
                 "You are a narration service helping a visually impaired player \
-            understand the scene for the game they're playing. \
-            Describe the contents of the screenshots you will be given. \
-            Limit your response to one sentence. \
-            Do not use headings or explicit section makers. \
-            Do not speculate about the image's contents. \
-            Use video game terminology if appropriate.",
+                understand the scene for the game they're playing. \
+                Describe the contents of the screenshots you will be given. \
+                Limit your response to one sentence. \
+                Do not use headings or explicit section makers. \
+                Do not speculate about the image's contents. \
+                Use video game terminology if appropriate.",
             ) // TODO: Make customizable
             .build()
-            .map(ChatCompletionRequestMessage::System)
-            .unwrap();
+            .map(ChatCompletionRequestMessage::System)?;
 
         let message = ChatCompletionRequestMessageContentPartImageArgs::default()
             .image_url(format!(
@@ -169,31 +175,32 @@ impl AiService {
                 body.image
             ))
             .build()
-            .map(ChatCompletionRequestMessageContentPart::ImageUrl)
-            .unwrap();
+            .map(ChatCompletionRequestMessageContentPart::ImageUrl)?;
 
         let user = ChatCompletionRequestUserMessageArgs::default()
             .content(vec![message])
             .build()
-            .map(ChatCompletionRequestMessage::User)
-            .unwrap();
+            .map(ChatCompletionRequestMessage::User)?;
 
         let request = CreateChatCompletionRequestArgs::default()
             .model("gpt-4o-mini") // TODO: Make customizable
             .max_tokens(300u32) // TODO: Make customizable
             .messages(vec![system, user])
-            .build()
-            .unwrap();
+            .build()?;
 
-        service.sender.send((id, request.clone().into())).await.expect("TODO: panic message");
+        service.sender.send((id, request.clone().into())).await?;
+        service.client.chat().create(request).await.or_else(|e| Err(Box::new(e))?)
+    }
 
-        match service.client.chat().create(request).await.as_ref() {
-            Ok(response) => {
-                service.sender.send((id, response.clone().into())).await.expect("TODO: panic message");
-                log::info!(target: "groan", "{:?}", response);
-                ResponseBody::text(response.choices[0].message.content.as_ref().unwrap())
-            }
-            Err(error) => ResponseBody::error(format!("Error: {:?}", error)),
-        }
+    async fn send_chat_request(
+        id: u64,
+        service: Arc<AiService>,
+        params: RequestParams,
+        body: RequestBody,
+    ) -> Result<ResponseBody, Box<dyn Error>> {
+        let response = Self::chat_completion(id, &service, params, body).await?;
+        service.sender.send((id, response.clone().into())).await?;
+        log::info!(target: "groan", "{:?}", response);
+        Ok(ResponseBody::text(response.choices[0].message.content.as_ref().unwrap()))
     }
 }
