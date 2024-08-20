@@ -46,6 +46,7 @@ impl ServiceCall {
 pub(crate) struct MessageCache {
     service_calls: HashMap<u64, ServiceCall>,
     request_images: HashMap<u64, Vec<u8>>,
+    request_sounds: HashMap<u64, Vec<u8>>,
 }
 
 const HTML: &str = include_str!(concat!(env!("OUT_DIR"), "/index.html"));
@@ -130,15 +131,31 @@ impl WebConsoleService {
                 }
             });
 
+        let me = self.clone();
         let image = warp::path!("api" / "request" / u64 / "image")
             .and(warp::get())
             .and_then(move |id: u64| {
-                let me = self.clone();
+                let me = me.clone();
                 async move {
                     let image = me.cache.lock().await.request_images.get(&id).ok_or_else(warp::reject::not_found)?.clone();
                     let response = Response::builder()
                         .header("Content-Type", "image/png")
                         .body(image)
+                        .unwrap();
+
+                    Ok::<_, Rejection>(response)
+                }
+            });
+
+        let sound = warp::path!("api" / "request" / u64 / "sound")
+            .and(warp::get())
+            .and_then(move |id: u64| {
+                let me = self.clone();
+                async move {
+                    let sound = me.cache.lock().await.request_sounds.get(&id).ok_or_else(warp::reject::not_found)?.clone();
+                    let response = Response::builder()
+                        .header("Content-Type", "audio/wav")
+                        .body(sound)
                         .unwrap();
 
                     Ok::<_, Rejection>(response)
@@ -153,9 +170,8 @@ impl WebConsoleService {
 
         let api = requests
             .or(request)
-            .or(image);
-
-        // TODO: Route for getting a sound clip
+            .or(image)
+            .or(sound);
 
         warp::any()
             .and(static_files.or(api))
