@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 // Types based on descriptions given in https://docs.libretro.com/guides/ai-service/#for-developers
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -115,6 +116,16 @@ impl ResponseBody {
     {
         Self {
             text: Some(text.into()),
+            ..Default::default()
+        }
+    }
+
+    pub(crate) fn sound<T>(sound: T) -> Self
+    where
+        T: AsRef<[u8]>,
+    {
+        Self {
+            sound: Some(STANDARD.encode(sound)),
             ..Default::default()
         }
     }

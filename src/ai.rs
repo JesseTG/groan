@@ -4,13 +4,16 @@ use crate::types::{
     ImageOutputFormat, InvalidRequestBody, RequestBody, RequestParams, ResponseBody,
 };
 use async_openai::config::OpenAIConfig;
-use async_openai::types::{ChatCompletionRequestMessage, ChatCompletionRequestMessageContentPart, ChatCompletionRequestMessageContentPartImageArgs, ChatCompletionRequestSystemMessageArgs, ChatCompletionRequestUserMessageArgs, ChatCompletionResponseMessage, CreateChatCompletionRequest, CreateChatCompletionRequestArgs, CreateChatCompletionResponse};
+use async_openai::types::{ChatCompletionRequestMessage, ChatCompletionRequestMessageContentPart, ChatCompletionRequestMessageContentPartImageArgs, ChatCompletionRequestSystemMessageArgs, ChatCompletionRequestUserMessageArgs, ChatCompletionResponseMessage, CreateChatCompletionRequest, CreateChatCompletionRequestArgs, CreateChatCompletionResponse, CreateSpeechRequest, CreateSpeechRequestArgs, CreateSpeechResponse};
 use async_openai::Client;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use async_openai::error::OpenAIError;
+use async_openai::types::SpeechModel::Tts1;
+use async_openai::types::SpeechResponseFormat::Wav;
+use async_openai::types::Voice::Fable;
 use serde_json::Value;
 use tokio::sync::mpsc::{Receiver, Sender};
 use warp::Filter;
@@ -35,11 +38,13 @@ pub(crate) struct ServiceRequest {
 #[derive(Debug, Serialize)]
 pub(crate) enum OpenAiRequest {
     CreateChatCompletionRequest(CreateChatCompletionRequest),
+    CreateSpeechRequest(CreateSpeechRequest),
 }
 
 #[derive(Debug, Serialize)]
 pub(crate) enum OpenAiResponse {
     CreateChatCompletionResponse(CreateChatCompletionResponse),
+    CreateSpeechResponse(Vec<u8>),
 }
 
 #[derive(Debug, Serialize)]
@@ -62,9 +67,21 @@ impl From<CreateChatCompletionResponse> for ServiceMessage {
     }
 }
 
+impl From<CreateSpeechResponse> for ServiceMessage {
+    fn from(response: CreateSpeechResponse) -> Self {
+        ServiceMessage::OpenAiResponse(OpenAiResponse::CreateSpeechResponse(Vec::from(response.bytes)))
+    }
+}
+
 impl From<CreateChatCompletionRequest> for ServiceMessage {
     fn from(request: CreateChatCompletionRequest) -> Self {
         ServiceMessage::OpenAiRequest(OpenAiRequest::CreateChatCompletionRequest(request))
+    }
+}
+
+impl From<CreateSpeechRequest> for ServiceMessage {
+    fn from(request: CreateSpeechRequest) -> Self {
+        ServiceMessage::OpenAiRequest(OpenAiRequest::CreateSpeechRequest(request))
     }
 }
 
@@ -143,7 +160,7 @@ impl AiService {
             .as_slice()
         {
             ["text", ..] => AiService::send_chat_request(id, service, params, body).await,
-            ["sound", "wav", ..] => Ok(ResponseBody::error("Not implemented")),
+            ["sound", "wav", ..] => AiService::send_sound_request(id, service, params, body).await,
             ["image", "png", "png-a", ..] => Ok(ResponseBody::error("Not implemented")),
             _ => Ok(ResponseBody::error(format!("Unknown output format {:?}", params.output))),
         }
@@ -201,6 +218,29 @@ impl AiService {
         let response = Self::chat_completion(id, &service, params, body).await?;
         service.sender.send((id, response.clone().into())).await?;
         log::info!(target: "groan", "{:?}", response);
-        Ok(ResponseBody::text(response.choices[0].message.content.as_ref().unwrap()))
+        Ok(ResponseBody::text(response.choices[0].message.content.as_ref().ok_or("No content in response")?))
+    }
+
+    async fn send_sound_request(
+        id: u64,
+        service: Arc<AiService>,
+        params: RequestParams,
+        body: RequestBody,
+    ) -> Result<ResponseBody, Box<dyn Error>> {
+        let chat_response = Self::chat_completion(id, &service, params, body).await?;
+        let text = chat_response.choices[0].message.content.as_ref().ok_or("No content in response")?;
+
+        let request = CreateSpeechRequestArgs::default()
+            .input(text)
+            .model(Tts1) // TODO: Make customizable
+            .voice(Fable) // TODO: Make customizable
+            .response_format(Wav)
+            .speed(1.1)
+            .build()?;
+
+        let response = service.client.audio().speech(request).await.or_else(|e| Err(Box::new(e)))?;
+
+        service.sender.send((id, response.clone().into())).await?;
+        Ok(ResponseBody::sound(response.bytes))
     }
 }
