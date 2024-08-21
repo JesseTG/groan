@@ -1,4 +1,3 @@
-use crate::ai::ServiceMessage::*;
 use crate::ai::{MessageReceiver, ServiceRequest, ServiceResponse};
 use std::collections::HashMap;
 use std::error::Error;
@@ -11,6 +10,8 @@ use serde_json::Value;
 use tokio::sync::Mutex;
 use warp::http::{HeaderMap, Response};
 use warp::{Filter, Rejection};
+use crate::ai::OpenAiMessage::CreateSpeechResponse;
+use crate::ai::ServiceMessage;
 use crate::types::{RequestBody, RequestParams, ResponseBody};
 
 #[derive(Clone)]
@@ -26,8 +27,7 @@ pub(crate) struct RequestIds {
 #[derive(Serialize)]
 pub(crate) struct ServiceCall {
     pub(crate) client_request: ServiceRequest,
-    pub(crate) openai_request: Option<crate::ai::OpenAiRequest>,
-    pub(crate) openai_response: Option<crate::ai::OpenAiResponse>,
+    pub(crate) openai_messages: Vec<crate::ai::OpenAiMessage>,
     pub(crate) client_response: Option<ServiceResponse>,
 }
 
@@ -35,8 +35,7 @@ impl ServiceCall {
     pub(crate) fn new(client_request: ServiceRequest) -> Self {
         Self {
             client_request,
-            openai_request: None,
-            openai_response: None,
+            openai_messages: vec![],
             client_response: None,
         }
     }
@@ -46,7 +45,7 @@ impl ServiceCall {
 pub(crate) struct MessageCache {
     service_calls: HashMap<u64, ServiceCall>,
     request_images: HashMap<u64, Vec<u8>>,
-    request_sounds: HashMap<u64, Vec<u8>>,
+    response_sounds: HashMap<u64, Arc<Vec<u8>>>,
 }
 
 const HTML: &str = include_str!(concat!(env!("OUT_DIR"), "/index.html"));
@@ -147,15 +146,16 @@ impl WebConsoleService {
                 }
             });
 
-        let sound = warp::path!("api" / "request" / u64 / "sound")
+        let sound = warp::path!("api" / "response" / u64 / "sound")
             .and(warp::get())
             .and_then(move |id: u64| {
                 let me = self.clone();
                 async move {
-                    let sound = me.cache.lock().await.request_sounds.get(&id).ok_or_else(warp::reject::not_found)?.clone();
+                    let sound = me.cache.lock().await.response_sounds.get(&id).ok_or_else(warp::reject::not_found)?.clone();
+                    let sound = sound.as_ref();
                     let response = Response::builder()
                         .header("Content-Type", "audio/wav")
-                        .body(sound)
+                        .body(sound.clone())
                         .unwrap();
 
                     Ok::<_, Rejection>(response)
@@ -207,24 +207,25 @@ impl WebConsoleService {
     pub(crate) async fn poll_task(&mut self, mut receiver: MessageReceiver) {
         while let Some((id, message)) = receiver.recv().await {
             match message {
-                ClientRequest(headers, params, body) => {
+                ServiceMessage::ClientRequest(headers, params, body) => {
                     if let Err(e) = self.handle_client_request(id, headers, params, body).await {
                         log::error!("Error handling client request: {}", e);
                     }
                 }
-                OpenAiRequest(request) => {
+                ServiceMessage::OpenAiMessage(CreateSpeechResponse(audio)) => {
+                    let mut cache = self.cache.lock().await;
+                    assert!(cache.service_calls.contains_key(&id));
+                    cache.response_sounds.insert(id, audio.clone());
+                    let call = cache.service_calls.get_mut(&id).unwrap();
+                    call.openai_messages.push(CreateSpeechResponse(audio));
+                }
+                ServiceMessage::OpenAiMessage(message) => {
                     let mut cache = self.cache.lock().await;
                     assert!(cache.service_calls.contains_key(&id));
                     let call = cache.service_calls.get_mut(&id).unwrap();
-                    call.openai_request = Some(request);
+                    call.openai_messages.push(message);
                 }
-                OpenAiResponse(response) => {
-                    let mut cache = self.cache.lock().await;
-                    assert!(cache.service_calls.contains_key(&id));
-                    let call = cache.service_calls.get_mut(&id).unwrap();
-                    call.openai_response = Some(response);
-                }
-                ClientResponse(headers, body) => {
+                ServiceMessage::ClientResponse(headers, body) => {
                     if let Err(e) = self.handle_client_response(id, headers, body).await {
                         log::error!("Error handling client response: {}", e);
                     }

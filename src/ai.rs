@@ -36,15 +36,11 @@ pub(crate) struct ServiceRequest {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) enum OpenAiRequest {
+pub(crate) enum OpenAiMessage {
     CreateChatCompletionRequest(CreateChatCompletionRequest),
     CreateSpeechRequest(CreateSpeechRequest),
-}
-
-#[derive(Debug, Serialize)]
-pub(crate) enum OpenAiResponse {
     CreateChatCompletionResponse(CreateChatCompletionResponse),
-    CreateSpeechResponse(Vec<u8>),
+    CreateSpeechResponse(Arc<Vec<u8>>),
 }
 
 #[derive(Debug, Serialize)]
@@ -56,32 +52,31 @@ pub(crate) struct ServiceResponse {
 #[derive(Debug)]
 pub(crate) enum ServiceMessage {
     ClientRequest(HeaderMap, String, Bytes),
-    OpenAiRequest(OpenAiRequest),
-    OpenAiResponse(OpenAiResponse),
+    OpenAiMessage(OpenAiMessage),
     ClientResponse(HeaderMap, Bytes),
 }
 
 impl From<CreateChatCompletionResponse> for ServiceMessage {
     fn from(response: CreateChatCompletionResponse) -> Self {
-        ServiceMessage::OpenAiResponse(OpenAiResponse::CreateChatCompletionResponse(response))
+        ServiceMessage::OpenAiMessage(OpenAiMessage::CreateChatCompletionResponse(response))
     }
 }
 
 impl From<CreateSpeechResponse> for ServiceMessage {
     fn from(response: CreateSpeechResponse) -> Self {
-        ServiceMessage::OpenAiResponse(OpenAiResponse::CreateSpeechResponse(Vec::from(response.bytes)))
+        ServiceMessage::OpenAiMessage(OpenAiMessage::CreateSpeechResponse(Arc::new(Vec::from(response.bytes))))
     }
 }
 
 impl From<CreateChatCompletionRequest> for ServiceMessage {
     fn from(request: CreateChatCompletionRequest) -> Self {
-        ServiceMessage::OpenAiRequest(OpenAiRequest::CreateChatCompletionRequest(request))
+        ServiceMessage::OpenAiMessage(OpenAiMessage::CreateChatCompletionRequest(request))
     }
 }
 
 impl From<CreateSpeechRequest> for ServiceMessage {
     fn from(request: CreateSpeechRequest) -> Self {
-        ServiceMessage::OpenAiRequest(OpenAiRequest::CreateSpeechRequest(request))
+        ServiceMessage::OpenAiMessage(OpenAiMessage::CreateSpeechRequest(request))
     }
 }
 
