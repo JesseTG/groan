@@ -20,7 +20,7 @@ pub(crate) enum OutputFormat {
     Image(Vec<ImageOutputFormat>),
 }
 
-#[derive(Deserialize, Serialize, Debug, Default)]
+#[derive(Deserialize, Serialize, Default)]
 pub(crate) struct ResponseBody {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) image: Option<String>,
@@ -154,6 +154,22 @@ impl Debug for RequestBody {
             .finish()
     }
 }
+
+impl Debug for ResponseBody {
+    // So that ResponseBody can be printed in logs without enormous base64 data.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ResponseBody")
+            .field("image", if self.image.is_some() { &"<base64-encoded image>" } else { &self.image })
+            .field("sound", if self.sound.is_some() { &"<base64-encoded sound>" } else { &self.sound })
+            .field("text", &self.text)
+            .field("text_position", &self.text_position)
+            .field("press", &self.press)
+            .field("error", &self.error)
+            .field("auto_request", &self.auto_request)
+            .finish()
+    }
+}
+
 mod base64_serialize {
     use base64::engine::general_purpose::STANDARD;
     use base64::Engine;
