@@ -120,7 +120,7 @@ impl ResponseBody {
         }
     }
 
-    pub(crate) fn sound<T>(sound: T) -> Self
+    pub(crate) fn sound<T>(sound: &T) -> Self
     where
         T: AsRef<[u8]>,
     {
