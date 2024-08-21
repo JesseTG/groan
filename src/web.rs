@@ -45,7 +45,7 @@ impl ServiceCall {
 pub(crate) struct MessageCache {
     service_calls: HashMap<u64, ServiceCall>,
     request_images: HashMap<u64, Vec<u8>>,
-    response_sounds: HashMap<u64, Arc<Vec<u8>>>,
+    response_sounds: HashMap<u64, Bytes>,
 }
 
 const HTML: &str = include_str!(concat!(env!("OUT_DIR"), "/index.html"));
@@ -152,10 +152,9 @@ impl WebConsoleService {
                 let me = self.clone();
                 async move {
                     let sound = me.cache.lock().await.response_sounds.get(&id).ok_or_else(warp::reject::not_found)?.clone();
-                    let sound = sound.as_ref();
                     let response = Response::builder()
                         .header("Content-Type", "audio/wav")
-                        .body(sound.clone())
+                        .body(sound)
                         .unwrap();
 
                     Ok::<_, Rejection>(response)
@@ -212,12 +211,12 @@ impl WebConsoleService {
                         log::error!("Error handling client request: {}", e);
                     }
                 }
-                ServiceMessage::OpenAiMessage(CreateSpeechResponse(audio)) => {
+                ServiceMessage::OpenAiMessage(ref message @ CreateSpeechResponse(ref audio)) => {
                     let mut cache = self.cache.lock().await;
                     assert!(cache.service_calls.contains_key(&id));
                     cache.response_sounds.insert(id, audio.clone());
                     let call = cache.service_calls.get_mut(&id).unwrap();
-                    call.openai_messages.push(CreateSpeechResponse(audio));
+                    call.openai_messages.push(message.clone());
                 }
                 ServiceMessage::OpenAiMessage(message) => {
                     let mut cache = self.cache.lock().await;

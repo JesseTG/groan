@@ -6,7 +6,7 @@ use crate::types::{
 use async_openai::config::OpenAIConfig;
 use async_openai::types::{ChatCompletionRequestMessage, ChatCompletionRequestMessageContentPart, ChatCompletionRequestMessageContentPartImageArgs, ChatCompletionRequestSystemMessageArgs, ChatCompletionRequestUserMessageArgs, ChatCompletionResponseMessage, CreateChatCompletionRequest, CreateChatCompletionRequestArgs, CreateChatCompletionResponse, CreateSpeechRequest, CreateSpeechRequestArgs, CreateSpeechResponse};
 use async_openai::Client;
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
@@ -35,12 +35,12 @@ pub(crate) struct ServiceRequest {
     pub(crate) body: Value,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub(crate) enum OpenAiMessage {
     CreateChatCompletionRequest(CreateChatCompletionRequest),
     CreateSpeechRequest(CreateSpeechRequest),
     CreateChatCompletionResponse(CreateChatCompletionResponse),
-    CreateSpeechResponse(Arc<Vec<u8>>),
+    CreateSpeechResponse(Bytes),
 }
 
 #[derive(Debug, Serialize)]
@@ -64,7 +64,7 @@ impl From<CreateChatCompletionResponse> for ServiceMessage {
 
 impl From<CreateSpeechResponse> for ServiceMessage {
     fn from(response: CreateSpeechResponse) -> Self {
-        ServiceMessage::OpenAiMessage(OpenAiMessage::CreateSpeechResponse(Arc::new(Vec::from(response.bytes))))
+        ServiceMessage::OpenAiMessage(OpenAiMessage::CreateSpeechResponse(response.bytes))
     }
 }
 
@@ -233,9 +233,28 @@ impl AiService {
             .speed(1.1)
             .build()?;
 
+        // OpenAI returns a WAV file with a subchunk2 size of -1
+        // RetroArch's built-in WAV parser treats subchunks with a negative length as invalid
+        // So we need to compute the length and fix the file
         let response = service.client.audio().speech(request).await.or_else(|e| Err(Box::new(e)))?;
 
-        service.sender.send((id, response.clone().into())).await?;
-        Ok(ResponseBody::sound(response.bytes))
+        // This memory is already allocated;
+        // ideally we can use it, but if not then we need to make our own copy
+        let mut sound = response.bytes.try_into_mut().unwrap_or_else(BytesMut::from);
+        let bytes_length = sound.len();
+
+        // First subchunk2 size is at bytes 40-43
+        let subchunk2size = sound.get_mut(40..44).ok_or("WAV file is too short")?;
+        if i32::from_le_bytes(subchunk2size.try_into()?) == -1 {
+            let length = (bytes_length - 44) as i32;
+            log::debug!(target: "groan", "Returned audio's subchunk2size is -1; computed size is {}", length);
+            subchunk2size.copy_from_slice(&length.to_le_bytes());
+        }
+
+        let bytes = sound.freeze();
+
+        let response = ResponseBody::sound(&bytes);
+        service.sender.send((id, ServiceMessage::OpenAiMessage(OpenAiMessage::CreateSpeechResponse(bytes)))).await?;
+        Ok(response)
     }
 }
