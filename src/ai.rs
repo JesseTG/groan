@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 use std::error::Error;
+use std::io::BufWriter;
 use crate::types::{
     ImageOutputFormat, InvalidRequestBody, RequestBody, RequestParams, ResponseBody,
 };
 use async_openai::config::OpenAIConfig;
 use async_openai::types::{ChatCompletionRequestMessage, ChatCompletionRequestMessageContentPart, ChatCompletionRequestMessageContentPartImageArgs, ChatCompletionRequestSystemMessageArgs, ChatCompletionRequestUserMessageArgs, ChatCompletionResponseMessage, CreateChatCompletionRequest, CreateChatCompletionRequestArgs, CreateChatCompletionResponse, CreateSpeechRequest, CreateSpeechRequestArgs, CreateSpeechResponse};
 use async_openai::Client;
-use bytes::{Bytes, BytesMut};
+use bytes::{buf, BufMut, Bytes, BytesMut};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
@@ -14,6 +15,10 @@ use async_openai::error::OpenAIError;
 use async_openai::types::SpeechModel::Tts1;
 use async_openai::types::SpeechResponseFormat::Wav;
 use async_openai::types::Voice::Fable;
+use base64::Engine;
+use base64::prelude::BASE64_STANDARD;
+use image::codecs::png::PngEncoder;
+use image::{ImageEncoder, ImageFormat, RgbImage, RgbaImage};
 use serde_json::Value;
 use tokio::sync::mpsc::{Receiver, Sender};
 use warp::Filter;
@@ -156,7 +161,7 @@ impl AiService {
         {
             ["text", ..] => AiService::send_chat_request(id, service, params, body).await,
             ["sound", "wav", ..] => AiService::send_sound_request(id, service, params, body).await,
-            ["image", "png", "png-a", ..] => Ok(ResponseBody::error("Not implemented")),
+            ["image", "bmp" | "png" | "png-a", ..] => AiService::send_image_request(id, service, params, body).await,
             _ => Ok(ResponseBody::error(format!("Unknown output format {:?}", params.output))),
         }
     }
@@ -256,5 +261,33 @@ impl AiService {
         let response = ResponseBody::sound(&bytes);
         service.sender.send((id, ServiceMessage::OpenAiMessage(OpenAiMessage::CreateSpeechResponse(bytes)))).await?;
         Ok(response)
+    }
+
+    async fn send_image_request(
+        id: u64,
+        service: Arc<AiService>,
+        params: RequestParams,
+        body: RequestBody,
+    ) -> Result<ResponseBody, Box<dyn Error>> {
+        let mut image = RgbaImage::new(32, 32);
+
+        for x in 0..image.width() {
+            for y in 0..image.height() {
+                let color = if (x / 8 + y / 8) % 2 == 0 {
+                    image::Rgba([0, 0, 0, 255])
+                } else {
+                    image::Rgba([0, 0, 0, 0])
+                };
+                image.put_pixel(x, y, color);
+            }
+        }
+
+        let mut cursor = std::io::Cursor::new(Vec::<u8>::new());
+        image.write_to(&mut cursor, ImageFormat::Png)?;
+
+        Ok(ResponseBody::image(&cursor.get_ref()))
+        // TODO: Run ocrs on the image
+        // TODO: Get the bounding boxes of text in the image
+        // TODO: Send an image that contains the drawn bounding boxes
     }
 }

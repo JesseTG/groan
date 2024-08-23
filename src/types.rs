@@ -130,6 +130,17 @@ impl ResponseBody {
         }
     }
 
+    pub(crate) fn image<T>(image: &T) -> Self
+    where
+        T: AsRef<[u8]>,
+    {
+        Self {
+            image: Some(STANDARD.encode(image)),
+            ..Default::default()
+        }
+    }
+
+
     pub(crate) fn error<T>(error: T) -> Self
     where
         T: Into<String>,
